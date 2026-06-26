@@ -1378,7 +1378,19 @@ export default function App() {
     setGeneratedShayaris([]);
 
     try {
-      const response = await fetch("/api/generate", {
+      // Detect if we are running on Netlify or if we should use Netlify Serverless Functions
+      const isNetlify = typeof window !== "undefined" && (
+        window.location.hostname.includes("netlify.app") ||
+        window.location.hostname.includes("netlify.com") ||
+        (window.location.hostname.includes("run.app") === false && 
+         window.location.hostname.includes("localhost") === false && 
+         window.location.hostname.includes("127.0.0.1") === false)
+      );
+
+      // Use Netlify Functions for all Gemini API requests if running on Netlify
+      const endpoint = isNetlify ? "/.netlify/functions/generate" : "/api/generate";
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
