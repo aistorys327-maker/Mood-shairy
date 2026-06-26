@@ -3,8 +3,8 @@ const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
   "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png"
+  "/icons/icon-192.png",
+  "/icons/icon-512.png"
 ];
 
 // Install Event
@@ -67,7 +67,7 @@ self.addEventListener("fetch", (event) => {
       // Fetch from network and cache for next time
       return fetch(event.request)
         .then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== "basic") {
+          if (!networkResponse || (networkResponse.status !== 200 && networkResponse.status !== 0)) {
             return networkResponse;
           }
           const responseToCache = networkResponse.clone();
