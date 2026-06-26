@@ -5,11 +5,6 @@ import {
   Sparkles, 
   AlertCircle, 
   Info, 
-  Smartphone, 
-  Monitor, 
-  Wifi, 
-  Battery, 
-  Signal, 
   Heart, 
   Share2, 
   BookOpen, 
@@ -938,20 +933,11 @@ export default function App() {
     return "generator";
   });
 
-  const [isPhoneView, setIsPhoneView] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("mood_is_phone_view");
-      return saved !== "false"; 
-    }
-    return true;
-  });
-
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isOfflineFallback, setIsOfflineFallback] = useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<string>("12:30");
 
   // Sync state changes to localStorage immediately to fulfill "Save the current UI layout"
   useEffect(() => {
@@ -980,28 +966,9 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("mood_is_phone_view", String(isPhoneView));
-    }
-  }, [isPhoneView]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
       localStorage.setItem("mood_seen_shayari_texts", JSON.stringify(seenShayariTexts));
     }
   }, [seenShayariTexts]);
-
-  // Real-time local digital clock sync for Android Status bar
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const hours = now.getHours().toString().padStart(2, "0");
-      const minutes = now.getMinutes().toString().padStart(2, "0");
-      setCurrentTime(`${hours}:${minutes}`);
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Theme & Font states
   const [currentThemeId, setCurrentThemeId] = useState<"purple" | "pink" | "blue" | "green" | "orange">(() => {
@@ -1533,7 +1500,7 @@ export default function App() {
         </header>
 
         {/* Dynamic Inner Tab View */}
-        <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-5 space-y-6">
+        <div className="flex-1 overflow-y-auto no-scrollbar px-4 pt-5 pb-24 space-y-6">
           
           {activeTab === "generator" && (
             <div className="space-y-6">
@@ -2329,38 +2296,12 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center font-sans antialiased relative selection:bg-purple-200/70" id="app_root">
+    <div className={`w-screen min-h-screen bg-gradient-to-b ${activeTheme.bgGrad} flex flex-col font-sans antialiased relative selection:bg-purple-200/70 transition-colors duration-500 overflow-x-hidden`} id="app_root">
       
-      {/* Background aesthetics when viewing simulated phone mockup */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none bg-slate-950">
-        <div className={`absolute -top-[30%] -left-[20%] w-[80%] h-[80%] rounded-full opacity-15 blur-[160px] bg-current ${activeTheme.iconColor} transition-all duration-700`} />
-        <div className={`absolute -bottom-[30%] -right-[20%] w-[80%] h-[80%] rounded-full opacity-15 blur-[160px] bg-current ${activeTheme.iconColor} transition-all duration-700`} />
-      </div>
-
-      {/* Floating desktop toolbar switch to toggle Phone shell vs Full Screen */}
-      <div className="relative z-20 mb-5 mt-4 flex items-center gap-3 bg-slate-900/80 p-1.5 rounded-full border border-slate-800/80 shadow-xl backdrop-blur-xl shrink-0">
-        <button
-          onClick={() => setIsPhoneView(true)}
-          className={`flex items-center gap-1.5 px-4.5 py-2 rounded-full text-xs font-black uppercase tracking-wider cursor-pointer transition-all ${
-            isPhoneView
-              ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white shadow-md`
-              : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Smartphone className="w-3.5 h-3.5" />
-          <span>📱 Android View</span>
-        </button>
-        <button
-          onClick={() => setIsPhoneView(false)}
-          className={`flex items-center gap-1.5 px-4.5 py-2 rounded-full text-xs font-black uppercase tracking-wider cursor-pointer transition-all ${
-            !isPhoneView
-              ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white shadow-md`
-              : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Monitor className="w-3.5 h-3.5" />
-          <span>💻 Full Screen</span>
-        </button>
+      {/* Background aesthetics */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className={`absolute -top-[30%] -left-[20%] w-[80%] h-[80%] rounded-full opacity-[0.08] blur-[160px] bg-current ${activeTheme.iconColor} transition-all duration-700`} />
+        <div className={`absolute -bottom-[30%] -right-[20%] w-[80%] h-[80%] rounded-full opacity-[0.08] blur-[160px] bg-current ${activeTheme.iconColor} transition-all duration-700`} />
       </div>
 
       {/* Real-time Toast Notifications */}
@@ -2378,83 +2319,10 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Primary Layout Engine */}
-      {isPhoneView ? (
-        /* Real Android Phone Chassis Mockup centering on screen */
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="w-full max-w-[395px] aspect-[9/19.5] bg-slate-950 rounded-[54px] shadow-[0_25px_80px_-15px_rgba(0,0,0,0.8)] border-[11px] border-slate-900 flex flex-col relative overflow-hidden shrink-0 outline-none select-none ring-1 ring-white/10"
-          id="android_frame"
-        >
-          {/* Bezel Side buttons */}
-          <div className="absolute right-[-11px] top-28 w-[3px] h-10 bg-slate-800 rounded-l-lg z-50" />
-          <div className="absolute right-[-11px] top-44 w-[3px] h-16 bg-slate-800 rounded-l-lg z-50" />
-
-          {/* Android Speaker Grill slot */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-20 h-1 bg-slate-800 rounded-full z-50" />
-          
-          {/* Android Front Camera Notch Hole */}
-          <div className="absolute top-4.5 left-1/2 -translate-x-1/2 w-4.5 h-4.5 bg-slate-950 rounded-full z-50 flex items-center justify-center ring-1 ring-slate-800/60">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#1e293b]" />
-          </div>
-
-          {/* Device Screen Area */}
-          <div className={`flex-1 flex flex-col overflow-hidden relative bg-gradient-to-b ${activeTheme.bgGrad}`}>
-            
-            {/* Real-time Android Status Bar widget */}
-            <div className={`h-10 pt-4 px-6 flex items-center justify-between text-[11px] font-bold select-none z-40 ${activeTheme.textColor} bg-white/30 backdrop-blur-xs shrink-0 transition-colors duration-300`}>
-              <span className="font-sans flex items-center gap-1">
-                <span>{currentTime}</span>
-                <span className="text-[9px] opacity-75">🪶</span>
-              </span>
-              <div className="flex items-center gap-1.5">
-                <Signal className="w-3 h-3 text-current opacity-80" />
-                <span className="text-[8px] font-black tracking-tighter opacity-80">5G</span>
-                <Wifi className="w-3.5 h-3.5 text-current opacity-80" />
-                <Battery className="w-4 h-4 text-current opacity-80" />
-              </div>
-            </div>
-
-            {/* Inner App Content Scrollable Container */}
-            {renderAppContent()}
-
-            {/* Android Navigation Gesture Indicator pill */}
-            <div className="absolute bottom-1.5 left-0 right-0 z-50 pointer-events-none">
-              <div className="w-24 h-1 bg-slate-900/20 hover:bg-slate-900/40 rounded-full mx-auto" />
-            </div>
-
-          </div>
-        </motion.div>
-      ) : (
-        /* Full Screen fluid landscape mode (still preserves beautiful Android status bar & layouts!) */
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className={`w-full max-w-4xl min-h-[90vh] md:my-6 rounded-3xl overflow-hidden relative flex flex-col bg-gradient-to-b ${activeTheme.bgGrad} shadow-[0_20px_60px_rgba(0,0,0,0.5)] border ${activeTheme.cardBorder}`}
-          id="full_screen_content"
-        >
-          {/* Top Android Status Bar */}
-          <div className={`h-9 px-6 flex items-center justify-between text-[11px] font-bold select-none z-40 ${activeTheme.textColor} bg-white/25 backdrop-blur-xs shrink-0 border-b ${activeTheme.cardBorder} transition-colors duration-300`}>
-            <span className="font-sans flex items-center gap-1">
-              <span>{currentTime}</span>
-              <span className="text-[9px] opacity-70">🪶</span>
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Signal className="w-3 h-3 opacity-80" />
-              <span className="text-[8px] font-black tracking-tighter opacity-70">5G</span>
-              <Wifi className="w-3.5 h-3.5 opacity-80" />
-              <Battery className="w-4 h-4 opacity-80" />
-            </div>
-          </div>
-
-          {/* Render app contents inside */}
-          <div className="flex-1 flex flex-col min-h-0 relative">
-            {renderAppContent()}
-          </div>
-        </motion.div>
-      )}
+      {/* Full-screen Fluid responsive container layout */}
+      <div className="flex-1 flex flex-col min-h-screen relative w-full max-w-lg md:max-w-2xl mx-auto shadow-2xl border-x border-slate-800/10 bg-slate-900/40 backdrop-blur-md">
+        {renderAppContent()}
+      </div>
 
       {/* Shayari Card Custom Editor Modal */}
       <AnimatePresence>
