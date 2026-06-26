@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { DEFAULT_SHAYARIS } from "./src/data";
 
 dotenv.config();
 
@@ -27,15 +28,86 @@ const getGeminiClient = () => {
   });
 };
 
+// Offline intelligent fallback to matching classical masterpieces if Gemini is down or key is missing
+const getOfflineFallbackShayaris = (userMood: string): any[] => {
+  const normalizedInput = userMood.toLowerCase().trim();
+  
+  // 1. Map typical keywords/synonyms to our categories
+  let targetCategory = "";
+  if (normalizedInput.includes("love") || normalizedInput.includes("pyar") || normalizedInput.includes("pyaar") || normalizedInput.includes("ishq") || normalizedInput.includes("romance") || normalizedInput.includes("romantic") || normalizedInput.includes("dil") || normalizedInput.includes("mohabbat")) {
+    targetCategory = "love";
+  } else if (normalizedInput.includes("sad") || normalizedInput.includes("dard") || normalizedInput.includes("tanhai") || normalizedInput.includes("breakup") || normalizedInput.includes("broken") || normalizedInput.includes("hurt") || normalizedInput.includes("pain") || normalizedInput.includes("lonely") || normalizedInput.includes("alone")) {
+    targetCategory = "sad";
+  } else if (normalizedInput.includes("attitude") || normalizedInput.includes("tevar") || normalizedInput.includes("style") || normalizedInput.includes("swag") || normalizedInput.includes("king") || normalizedInput.includes("ghuroor")) {
+    targetCategory = "attitude";
+  } else if (normalizedInput.includes("motivation") || normalizedInput.includes("motivational") || normalizedInput.includes("success") || normalizedInput.includes("inspire") || normalizedInput.includes("himmat") || normalizedInput.includes("determination") || normalizedInput.includes("koshish")) {
+    targetCategory = "motivational";
+  } else if (normalizedInput.includes("friend") || normalizedInput.includes("friendship") || normalizedInput.includes("dost") || normalizedInput.includes("yaari") || normalizedInput.includes("dosti") || normalizedInput.includes("yaar")) {
+    targetCategory = "friendship";
+  } else if (normalizedInput.includes("funny") || normalizedInput.includes("laugh") || normalizedInput.includes("joke") || normalizedInput.includes("comedy") || normalizedInput.includes("masti")) {
+    targetCategory = "funny";
+  }
+
+  // 2. Score all available shayaris based on category and word matching
+  const inputWords = normalizedInput.split(/\s+/).filter(w => w.length > 2);
+  
+  const scored = DEFAULT_SHAYARIS.map(s => {
+    let score = 0;
+    
+    // Category match is highest priority
+    if (targetCategory && s.mood === targetCategory) {
+      score += 15;
+    } else if (s.mood === normalizedInput) {
+      score += 20;
+    }
+    
+    // Check for word matches in text fields
+    for (const word of inputWords) {
+      if (s.mood.toLowerCase().includes(word)) score += 5;
+      if (s.transliteration.toLowerCase().includes(word)) score += 3;
+      if (s.translation.toLowerCase().includes(word)) score += 2;
+      if (s.sher.toLowerCase().includes(word)) score += 3;
+    }
+    
+    return { ...s, score };
+  });
+
+  // 3. Filter and sort by score descending, then select 5 items
+  const matched = scored.filter(s => s.score > 0);
+  let selected: any[] = [];
+  
+  if (matched.length >= 3) {
+    matched.sort((b, a) => a.score - b.score);
+    const pool = matched.slice(0, 10);
+    // Shuffle the top pool slightly to keep responses fresh and dynamic
+    selected = pool.sort(() => 0.5 - Math.random()).slice(0, 5);
+  } else {
+    // Return a beautiful dynamic random selection
+    selected = [...DEFAULT_SHAYARIS].sort(() => 0.5 - Math.random()).slice(0, 5);
+  }
+
+  // 4. Return formatted shayaris matching the exact schema
+  return selected.map(s => ({
+    id: `fallback-${s.id}-${Math.random().toString(36).substring(2, 7)}`,
+    sher: s.sher,
+    transliteration: s.transliteration,
+    translation: s.translation,
+    poet: s.poet,
+    mood: s.mood,
+    isAI: false
+  }));
+};
+
 // API Endpoint to generate 5 beautiful Hindi/Urdu shayaris based on user mood (100% Pure Gemini AI)
 app.post("/api/generate", async (req, res) => {
-  try {
-    const { mood, excludeList } = req.body;
-    if (!mood || !mood.trim()) {
-      return res.status(400).json({ error: "Pehle apna mood likhiye." });
-    }
+  const { mood, excludeList } = req.body;
+  if (!mood || !mood.trim()) {
+    return res.status(400).json({ error: "Pehle apna mood likhiye." });
+  }
 
-    const trimmedInput = mood.trim();
+  const trimmedInput = mood.trim();
+
+  try {
     const ai = getGeminiClient();
 
     let exclusionInstruction = "";
@@ -72,7 +144,7 @@ For each shayari, provide the following pieces of information:
     };
 
     // Try multiple model endpoints to bypass single-model transient high traffic or 503 limits
-    const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"];
+    const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
     let responseText = "";
     let generationSuccessful = false;
 
@@ -109,13 +181,22 @@ For each shayari, provide the following pieces of information:
       }
     }
 
-    throw new Error("Unable to generate new shayaris from any Gemini AI models. Please ensure your GEMINI_API_KEY is correct or try again shortly.");
+    // Fall back to local curated masterpieces if model generation failed or returned empty
+    console.log("Gemini model generation failed or empty. Resorting to premium curated offline fallback...");
+    const fallbackShayaris = getOfflineFallbackShayaris(trimmedInput);
+    return res.json({ shayaris: fallbackShayaris, isOfflineFallback: true });
 
   } catch (error: any) {
-    console.error("Critical Generation Error:", error);
-    return res.status(500).json({ 
-      error: error?.message || "Gemini AI was unable to generate new shayaris. Please verify your API key and try again in a moment." 
-    });
+    console.error("Critical Generation Error (Initiating Graceful Offline Fallback):", error);
+    try {
+      const fallbackShayaris = getOfflineFallbackShayaris(trimmedInput);
+      return res.json({ shayaris: fallbackShayaris, isOfflineFallback: true });
+    } catch (fallbackError) {
+      console.error("Failed to generate offline fallback:", fallbackError);
+      return res.status(500).json({ 
+        error: "Gemini AI was unable to generate new shayaris and local fallback failed. Please verify your API key and try again in a moment." 
+      });
+    }
   }
 });
 
