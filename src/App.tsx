@@ -360,140 +360,496 @@ function getAutoAdjustedCardSpecs(
 ) {
   const cleanText = text || "";
   const length = cleanText.length;
-  // Get non-empty line count
-  const lines = cleanText.split("\n").filter(l => l.trim().length > 0).length + (hasPoet ? 1 : 0);
 
-  // Sequential tailwind text sizes from smallest to largest
+  // Determine line wrap limit based on aspect ratio
+  // E.g. narrow columns wrap very early, wide ones take more characters.
+  let lineWrapCharLimit = 22;
+  if (ratio === "9:16") {
+    lineWrapCharLimit = 16;
+  } else if (ratio === "16:9") {
+    lineWrapCharLimit = 38;
+  } else if (ratio === "4:5") {
+    lineWrapCharLimit = 22;
+  } else {
+    lineWrapCharLimit = 24;
+  }
+
+  // Estimate the actual visual wrapped lines
+  const rawLines = cleanText.split("\n");
+  let estimatedLines = 0;
+  for (const line of rawLines) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) continue;
+    estimatedLines += Math.max(1, Math.ceil(trimmed.length / lineWrapCharLimit));
+  }
+
+  const totalVerticalUnits = estimatedLines + (hasPoet ? 1.5 : 0);
+  const totalLines = Math.max(1, estimatedLines);
+
+  // Sequential premium tailwind text sizes from smallest to largest (as safe fallbacks)
   const sizeOrder = [
-    "text-[9px] sm:text-[10px]",     // index 0
-    "text-[10px] sm:text-xs",        // index 1
-    "text-xs sm:text-sm",            // index 2
-    "text-sm sm:text-base",          // index 3
-    "text-base sm:text-lg",          // index 4
-    "text-lg sm:text-xl",            // index 5
-    "text-xl sm:text-2xl",           // index 6
-    "text-2xl sm:text-3xl",          // index 7
-    "text-3xl sm:text-4xl",          // index 8
+    "text-[10px] sm:text-xs md:text-sm",                    // index 0: micro
+    "text-xs sm:text-sm md:text-base",                      // index 1: tiny
+    "text-sm sm:text-base md:text-lg",                      // index 2: compact
+    "text-base sm:text-lg md:text-xl",                      // index 3: regular
+    "text-lg sm:text-xl md:text-2xl",                      // index 4: premium
+    "text-xl sm:text-2xl md:text-3xl",                      // index 5: grand
+    "text-2xl sm:text-3xl md:text-4xl",                     // index 6: extra grand
+    "text-3xl sm:text-4xl md:text-5xl",                     // index 7: large
+    "text-4xl sm:text-5xl md:text-6xl",                     // index 8: majestic
+    "text-5xl sm:text-6xl md:text-7xl",                     // index 9: monumental
   ];
 
   // Map incoming Tailwind text size keys to indices
   const sizeKeyMap: Record<string, number> = {
-    "text-xs": 2,
-    "text-sm": 3,
-    "text-base": 4,
-    "text-lg": 5,
-    "text-xl": 6,
-    "text-2xl": 7,
-    "text-3xl": 8,
+    "text-xs": 1,
+    "text-sm": 2,
+    "text-base": 3,
+    "text-lg": 4,
+    "text-xl": 5,
+    "text-2xl": 6,
+    "text-3xl": 7,
     "text-4xl": 8,
+    "text-5xl": 9,
   };
 
-  const cleanBaseTextSize = (baseTextSize || "").trim();
-  let baseIndex = sizeKeyMap[cleanBaseTextSize] !== undefined ? sizeKeyMap[cleanBaseTextSize] : 7; // Default to text-2xl (index 7)
-
-  // Character length penalty
-  let lengthPenalty = 0;
-  if (length > 220) {
-    lengthPenalty = -3;
-  } else if (length > 150) {
-    lengthPenalty = -2;
-  } else if (length > 90) {
-    lengthPenalty = -1;
+  // Extract the raw text- class from responsive configurations if present
+  let cleanBaseTextSize = (baseTextSize || "").trim();
+  const textClassMatch = cleanBaseTextSize.match(/\btext-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl)\b/);
+  if (textClassMatch) {
+    cleanBaseTextSize = `text-${textClassMatch[1]}`;
   }
 
-  // Line count penalty
-  let linePenalty = 0;
-  if (lines > 6) {
-    linePenalty = -3;
-  } else if (lines > 4) {
-    linePenalty = -2;
-  } else if (lines > 2) {
-    linePenalty = -1;
-  }
+  let baseIndex = sizeKeyMap[cleanBaseTextSize] !== undefined ? sizeKeyMap[cleanBaseTextSize] : 6; // Default to text-2xl
 
-  let finalIndex = baseIndex + lengthPenalty + linePenalty;
+  // Set maximum bounds for indices based on aspect ratios first, then fine-tune
+  let maxSafeIndex = 9;
 
-  // Initialize specs variables
-  let paddingClass = "p-6";
-  let leadingClass = "leading-relaxed";
-  let containerClass = "max-w-full px-2";
-  let emojiClass = "text-3xl";
-  let emojiMarginClass = "mb-4";
-  let poetMarginClass = "mt-6";
-  let topBarMarginClass = "mb-5 pb-3";
-
-  if (ratio === "1:1") {
-    paddingClass = "p-5 sm:p-6";
-    // Bound the maximum size for standard Square cards
-    if (length > 180 || lines > 5) {
-      finalIndex = Math.min(finalIndex, 4); // text-base
-    } else if (length > 110 || lines > 3) {
-      finalIndex = Math.min(finalIndex, 5); // text-lg
+  if (ratio === "16:9") {
+    if (totalVerticalUnits >= 8) {
+      maxSafeIndex = 2; // compact
+    } else if (totalVerticalUnits >= 6) {
+      maxSafeIndex = 3; // regular
+    } else if (totalVerticalUnits >= 4.5) {
+      maxSafeIndex = 4; // premium
+    } else if (totalVerticalUnits >= 3) {
+      maxSafeIndex = 5; // grand
     } else {
-      finalIndex = Math.min(finalIndex, 6); // text-xl
+      maxSafeIndex = 6; // extra grand
     }
-    leadingClass = "leading-relaxed";
-    containerClass = "max-w-[95%] px-2 py-1";
-    emojiClass = "text-2xl sm:text-3xl";
-    emojiMarginClass = "mb-3 sm:mb-4";
-    poetMarginClass = "mt-4 sm:mt-6";
-    topBarMarginClass = "mb-4 sm:mb-5 pb-2 sm:pb-3";
-
-  } else if (ratio === "4:5") {
-    paddingClass = "p-5 sm:p-6";
-    // Bound maximum size for Portrait cards
-    if (length > 180 || lines > 5) {
-      finalIndex = Math.min(finalIndex, 4); // text-base
-    } else if (length > 110 || lines > 3) {
-      finalIndex = Math.min(finalIndex, 5); // text-lg
-    } else {
-      finalIndex = Math.min(finalIndex, 6); // text-xl
-    }
-    leadingClass = "leading-relaxed";
-    containerClass = "max-w-[95%] px-2 py-2";
-    emojiClass = "text-2xl sm:text-3xl";
-    emojiMarginClass = "mb-3";
-    poetMarginClass = "mt-4 sm:mt-5";
-    topBarMarginClass = "mb-4 pb-2";
-
   } else if (ratio === "9:16") {
-    // Narrow width: reduce padding to maximize line widths and decrease font index to avoid vertical/horizontal overflow
-    paddingClass = "px-4 py-6 sm:px-5 sm:py-7";
-    if (length > 180 || lines > 5) {
-      finalIndex = Math.min(finalIndex, 3); // text-sm
-    } else if (length > 110 || lines > 3) {
-      finalIndex = Math.min(finalIndex, 4); // text-base
+    if (totalVerticalUnits >= 12) {
+      maxSafeIndex = 4; // premium
+    } else if (totalVerticalUnits >= 9) {
+      maxSafeIndex = 5; // grand
+    } else if (totalVerticalUnits >= 7) {
+      maxSafeIndex = 6; // extra grand
+    } else if (totalVerticalUnits >= 5) {
+      maxSafeIndex = 7; // large
     } else {
-      finalIndex = Math.min(finalIndex, 5); // text-lg
+      maxSafeIndex = 8; // majestic
     }
-    leadingClass = "leading-relaxed";
-    containerClass = "max-w-[98%] px-1 py-3";
-    emojiClass = "text-xl sm:text-2xl";
-    emojiMarginClass = "mb-2 sm:mb-3";
-    poetMarginClass = "mt-3 sm:mt-4";
-    topBarMarginClass = "mb-3 pb-1.5 sm:pb-2";
-
-  } else if (ratio === "16:9") {
-    // Extreme vertical constraint: force smaller padding, snug leading, and tight font limits
-    paddingClass = "px-4 py-3 sm:px-5 sm:py-4";
-    if (length > 180 || lines > 4) {
-      finalIndex = Math.min(finalIndex, 1); // text-[10px]
-    } else if (length > 110 || lines > 3) {
-      finalIndex = Math.min(finalIndex, 2); // text-xs
+  } else if (ratio === "4:5") {
+    if (totalVerticalUnits >= 11) {
+      maxSafeIndex = 4; // premium
+    } else if (totalVerticalUnits >= 8) {
+      maxSafeIndex = 5; // grand
+    } else if (totalVerticalUnits >= 6) {
+      maxSafeIndex = 6; // extra grand
+    } else if (totalVerticalUnits >= 4.5) {
+      maxSafeIndex = 7; // large
     } else {
-      finalIndex = Math.min(finalIndex, 3); // text-sm
+      maxSafeIndex = 8; // majestic
     }
-    leadingClass = "leading-snug";
-    containerClass = "max-w-[98%] px-2 py-0.5";
-    emojiClass = "text-lg";
-    emojiMarginClass = "mb-1";
-    poetMarginClass = "mt-2";
-    topBarMarginClass = "mb-1.5 pb-1";
+  } else {
+    if (totalVerticalUnits >= 11) {
+      maxSafeIndex = 4; // premium
+    } else if (totalVerticalUnits >= 8) {
+      maxSafeIndex = 5; // grand
+    } else if (totalVerticalUnits >= 6) {
+      maxSafeIndex = 6; // extra grand
+    } else if (totalVerticalUnits >= 4) {
+      maxSafeIndex = 7; // large
+    } else {
+      maxSafeIndex = 8; // majestic
+    }
   }
 
-  // Bind within valid fontSizes list range
+  // 1. Ratio multiplier: how spacious is the card physically?
+  let ratioMultiplier = 1.0;
+  if (ratio === "4:5") {
+    ratioMultiplier = 1.15;
+  } else if (ratio === "9:16") {
+    ratioMultiplier = 1.05;
+  } else if (ratio === "16:9") {
+    ratioMultiplier = 0.8;
+  } else {
+    ratioMultiplier = 1.0;
+  }
+
+  // 2. Length modifier
+  let lengthModifier = 0;
+  if (length < 35) {
+    lengthModifier = 2;
+  } else if (length < 55) {
+    lengthModifier = 1;
+  } else if (length > 95) {
+    lengthModifier = -2;
+  } else if (length > 75) {
+    lengthModifier = -1;
+  }
+
+  // Calculate final adjusted index
+  let adjustedIndex = baseIndex + lengthModifier;
+  adjustedIndex = Math.round(adjustedIndex * ratioMultiplier);
+
+  // Apply maximum safe index cap to prevent overflow
+  let finalIndex = Math.min(adjustedIndex, maxSafeIndex);
+
+  // Dynamic configuration fallback tailwind classes
+  let paddingClass = "pt-14 pb-5 px-5 sm:pt-16 sm:pb-6 sm:px-6";
+  let leadingClass = "leading-relaxed";
+  let containerClass = "max-w-[96%] px-2";
+  let emojiClass = "text-2xl sm:text-3xl";
+  let emojiMarginClass = "mb-3 sm:mb-4";
+  let poetMarginClass = "mt-4 sm:mt-6";
+  let topBarMarginClass = "mb-4 sm:mb-5 pb-2 sm:pb-3";
+
+  if (ratio === "16:9") {
+    if (totalVerticalUnits >= 6) {
+      paddingClass = "pt-10 pb-2.5 px-3.5 sm:pt-11 sm:pb-3 sm:px-4";
+      leadingClass = "leading-snug";
+      containerClass = "max-w-[98%] px-1";
+      emojiClass = "text-[14px] sm:text-base";
+      emojiMarginClass = "mb-0.5 sm:mb-1";
+      poetMarginClass = "mt-1 sm:mt-1.5";
+      topBarMarginClass = "mb-1 sm:mb-1.5 pb-0.5";
+    } else if (totalVerticalUnits >= 4) {
+      paddingClass = "pt-12 pb-3 px-4 sm:pt-14 sm:pb-4 sm:px-5";
+      leadingClass = "leading-normal";
+      containerClass = "max-w-[97%] px-1.5";
+      emojiClass = "text-base sm:text-lg";
+      emojiMarginClass = "mb-1.5 sm:mb-2";
+      poetMarginClass = "mt-2 sm:mt-2.5";
+      topBarMarginClass = "mb-2 pb-1";
+    } else {
+      paddingClass = "pt-14 pb-4 px-5 sm:pt-16 sm:pb-5 sm:px-6";
+      leadingClass = "leading-relaxed";
+      containerClass = "max-w-[96%] px-2";
+      emojiClass = "text-xl sm:text-2xl";
+      emojiMarginClass = "mb-2 sm:mb-3";
+      poetMarginClass = "mt-3 sm:mt-4";
+      topBarMarginClass = "mb-3 pb-1.5";
+    }
+  } else if (ratio === "9:16") {
+    if (totalVerticalUnits >= 8) {
+      paddingClass = "pt-12 pb-4 px-3.5 sm:pt-14 sm:pb-5 sm:px-4.5";
+      leadingClass = "leading-normal";
+      containerClass = "max-w-[98%] px-1 py-1";
+      emojiClass = "text-xl";
+      emojiMarginClass = "mb-1.5 sm:mb-2";
+      poetMarginClass = "mt-2 sm:mt-3";
+      topBarMarginClass = "mb-2 pb-1";
+    } else if (totalVerticalUnits >= 5) {
+      paddingClass = "pt-14 pb-5 px-4.5 sm:pt-16 sm:pb-6 sm:px-5.5";
+      leadingClass = "leading-relaxed";
+      containerClass = "max-w-[96%] px-1.5 py-2";
+      emojiClass = "text-2xl";
+      emojiMarginClass = "mb-3 sm:mb-4";
+      poetMarginClass = "mt-3.5 sm:mt-4.5";
+      topBarMarginClass = "mb-3 pb-1.5";
+    } else {
+      paddingClass = "pt-16 pb-6 px-5.5 sm:pt-18 sm:pb-7 sm:px-6.5";
+      leadingClass = "leading-loose";
+      containerClass = "max-w-[95%] px-2 py-3";
+      emojiClass = "text-3xl";
+      emojiMarginClass = "mb-4 sm:mb-5";
+      poetMarginClass = "mt-5 sm:mt-6";
+      topBarMarginClass = "mb-4 pb-2";
+    }
+  } else {
+    if (totalVerticalUnits >= 8) {
+      paddingClass = "pt-12 pb-4 px-4 sm:pt-14 sm:pb-5 sm:px-5";
+      leadingClass = "leading-normal";
+      containerClass = "max-w-[97%] px-1.5 py-1";
+      emojiClass = "text-xl sm:text-2xl";
+      emojiMarginClass = "mb-2";
+      poetMarginClass = "mt-2.5 sm:mt-3.5";
+      topBarMarginClass = "mb-2.5 pb-1.5";
+    } else if (totalVerticalUnits >= 5) {
+      paddingClass = "pt-14 pb-5 px-5 sm:pt-16 sm:pb-6 sm:px-6";
+      leadingClass = "leading-relaxed";
+      containerClass = "max-w-[96%] px-2 py-1.5";
+      emojiClass = "text-2xl sm:text-3xl";
+      emojiMarginClass = "mb-3 sm:mb-4";
+      poetMarginClass = "mt-4 sm:mt-5";
+      topBarMarginClass = "mb-4 pb-2.5";
+    } else {
+      paddingClass = "pt-16 pb-6 px-6 sm:pt-18 sm:pb-7 sm:px-7";
+      leadingClass = "leading-loose";
+      containerClass = "max-w-[95%] px-2.5 py-2";
+      emojiClass = "text-3xl sm:text-4xl";
+      emojiMarginClass = "mb-4 sm:mb-5";
+      poetMarginClass = "mt-5 sm:mt-7";
+      topBarMarginClass = "mb-5 pb-3";
+    }
+  }
+
+  // Ensure index is within range [0, sizeOrder.length - 1]
   finalIndex = Math.max(0, Math.min(sizeOrder.length - 1, finalIndex));
   const fontSizeClass = sizeOrder[finalIndex];
+
+  // ==========================================
+  // MATHEMATICAL SMART INLINE TEXT LAYOUT SYSTEM
+  // ==========================================
+  
+  // We calculate responsive size parameters using container-relative query units (cqw/cqh)
+  // This guarantees that whether the card is tiny in preview or giant in download,
+  // the text ratio remains exactly proportional (occupying about 70% of the visual space).
+  
+  // 1. Calculate optimal padding top & bottom in cqh (percentage of card height)
+  // We keep padding tight (7-8%) so more height can be dedicated to natural spacing inside the card
+  let ptCqh = 8;
+  let pbCqh = 8;
+  let pxCqw = 8;
+  
+  if (ratio === "9:16") {
+    ptCqh = 8;
+    pbCqh = 8;
+    pxCqw = 7;
+  } else if (ratio === "16:9") {
+    ptCqh = 4;
+    pbCqh = 4;
+    pxCqw = 10;
+  } else if (ratio === "4:5") {
+    ptCqh = 7;
+    pbCqh = 7;
+    pxCqw = 8;
+  }
+
+  // If the shayari has many lines or is very long, reduce the card padding to gain precious vertical space!
+  if (totalLines >= 6 || length > 110) {
+    ptCqh = Math.max(3, ptCqh - 3);
+    pbCqh = Math.max(3, pbCqh - 3);
+  } else if (totalLines >= 4 || length > 75) {
+    ptCqh = Math.max(4, ptCqh - 1.5);
+    pbCqh = Math.max(4, pbCqh - 1.5);
+  }
+
+  // 2. Calculate optimal font size in container width units (cqw)
+  // To keep text prominently sized and fill the visual balance of the card height.
+  let baseCqw = 8.0; 
+  if (ratio === "9:16") {
+    baseCqw = 9.8; // story is narrow but very tall, so font relative to width can be larger
+  } else if (ratio === "16:9") {
+    baseCqw = 6.0; // landscape is very short, keep it smaller to fit
+  } else if (ratio === "4:5") {
+    baseCqw = 8.8; // portrait is spacious
+  }
+  
+  // Apply a non-linear scale down based on length & total line count
+  // "For short shayaris: Increase font size. For long shayaris: Reduce font size automatically."
+  let sizeFactor = 1.0;
+  if (length < 25) {
+    sizeFactor = 1.45; // ultra-boost for short two-liner couplets
+  } else if (length < 45) {
+    sizeFactor = 1.25; // boost for short shayaris
+  } else if (length < 70) {
+    sizeFactor = 1.05; // normal-medium
+  } else if (length < 95) {
+    sizeFactor = 0.90; // reduction for longer ones
+  } else if (length < 120) {
+    sizeFactor = 0.78; // further reduction
+  } else if (length < 150) {
+    sizeFactor = 0.65; // reduction for very long ones
+  } else {
+    sizeFactor = 0.55; // ultra-aggressive reduction for massive texts to fit perfectly
+  }
+  
+  // Adjust based on line count too to prevent height overflow
+  if (totalLines >= 8) {
+    sizeFactor = Math.min(sizeFactor, 0.58);
+  } else if (totalLines >= 6) {
+    sizeFactor = Math.min(sizeFactor, 0.68);
+  } else if (totalLines >= 4) {
+    sizeFactor = Math.min(sizeFactor, 0.82);
+  }
+  
+  let computedFontSizeCqw = baseCqw * sizeFactor;
+  
+  // Clamp boundaries to ensure excellent readability
+  let minCqwBound = 3.2; // lowered from 4.0 to allow smaller cards to fit perfectly
+  let maxCqwBound = 12.0;
+  if (ratio === "16:9") {
+    minCqwBound = 2.6;
+    maxCqwBound = 6.6;
+  } else if (ratio === "9:16") {
+    minCqwBound = 4.2;
+    maxCqwBound = 13.5;
+  }
+  computedFontSizeCqw = Math.max(minCqwBound, Math.min(maxCqwBound, computedFontSizeCqw));
+
+  // 3. Compute dynamic Line Spacing (lineHeight)
+  // "For short shayaris: Add more line spacing. For long shayaris: tighter line-height to fit."
+  let computedLineHeight = 1.95; // Very spacious, elegant and premium
+  if (length < 30) {
+    computedLineHeight = 2.5; // ultra spacious couplet spacing
+  } else if (length < 50) {
+    computedLineHeight = 2.2; // roomy line spacing
+  } else if (length > 100 || totalLines >= 6) {
+    computedLineHeight = 1.45; // very compact for massive verses
+  } else if (totalLines >= 5) {
+    computedLineHeight = 1.6;  // compact line spacing for longer shayari
+  } else if (totalLines >= 3) {
+    computedLineHeight = 1.8;
+  }
+  
+  if (ratio === "16:9") {
+    computedLineHeight = Math.min(computedLineHeight, 1.55); // clamp landscape
+  } else if (ratio === "9:16") {
+    computedLineHeight = Math.max(computedLineHeight, 2.15);  // boost story aspect
+  }
+
+  // 4. Compute Smart Text Position & Vertical alignment offsets
+  // "Do not always place the shayari exactly in the center. Automatically position the text based on the amount of content."
+  // Short shayaris look much more elegant when placed with a modern asymmetric, slightly top-heavy position.
+  let verticalShiftCqh = 0;
+  let targetHeightCqh = 78; // occupies about 75-80% height of the card
+  let justifyContent: "center" | "space-around" | "space-between" = "space-around";
+
+  if (length < 45) {
+    // Short shayari: Offset slightly upwards, group comfortably to keep it balanced and fill up to 74% - 78% card height
+    verticalShiftCqh = -1.5;
+    targetHeightCqh = 74; 
+    justifyContent = "space-around";
+    
+    if (ratio === "9:16") {
+      verticalShiftCqh = -2.0; // elegant story offset
+      targetHeightCqh = 78;
+    } else if (ratio === "16:9") {
+      verticalShiftCqh = -0.5;
+      targetHeightCqh = 68;
+    }
+  } else if (length < 80) {
+    // Medium shayari: slight upward shift for elegant balance, utilizing 78% - 82% of card height
+    verticalShiftCqh = -0.5;
+    targetHeightCqh = 78; 
+    justifyContent = "space-around";
+    
+    if (ratio === "9:16") {
+      verticalShiftCqh = -1.0;
+      targetHeightCqh = 82;
+    } else if (ratio === "16:9") {
+      verticalShiftCqh = 0;
+      targetHeightCqh = 72;
+    }
+  } else {
+    // Long shayari: use about 80% - 84% height of the card so it spreads naturally and doesn't compress or overflow
+    verticalShiftCqh = hasPoet ? -0.5 : 0;
+    targetHeightCqh = 80;
+    justifyContent = hasPoet ? "space-between" : "space-around"; // spread fully to look majestic
+    
+    if (ratio === "9:16") {
+      targetHeightCqh = 84; // utilize maximum space on stories
+    } else if (ratio === "16:9") {
+      targetHeightCqh = 74; // constrain slightly to prevent overflow
+    }
+  }
+
+  // Setup fluid responsive scale-factor hooks for @container query overrides
+  const cardVariables = {
+    "--card-pt": `${ptCqh}cqh`,
+    "--card-pb": `${pbCqh}cqh`,
+    "--card-px": `${pxCqw}cqw`,
+    "--font-size": `${computedFontSizeCqw}cqw`,
+    "--line-height": `${computedLineHeight}`,
+    "--paragraph-gap": `${ptCqh * 0.4}cqh`, // Dynamic, tied to padding/margins to maintain visual balance
+    "--inner-height": `${targetHeightCqh}cqh`,
+    "--vertical-shift": `${verticalShiftCqh}cqh`,
+  } as React.CSSProperties;
+
+  const cardStyle: React.CSSProperties = {
+    paddingTop: "calc(var(--card-pt) * var(--card-pt-scale, 1))",
+    paddingBottom: "calc(var(--card-pb) * var(--card-pb-scale, 1))",
+    paddingLeft: "var(--card-px)",
+    paddingRight: "var(--card-px)",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+  };
+
+  const innerWrapperStyle: React.CSSProperties = {
+    transform: "translateY(calc(var(--vertical-shift) * var(--vertical-shift-scale, 1)))",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent, // Dynamic spacing model
+    width: "100%",
+    height: "calc(var(--inner-height) * var(--inner-height-scale, 1))", 
+    transition: "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), height 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
+  };
+
+  const textStyle: React.CSSProperties = {
+    fontSize: "calc(var(--font-size) * var(--font-size-scale, 1))",
+    lineHeight: "calc(var(--line-height) * var(--line-height-scale, 1))",
+    width: "100%",
+    maxWidth: ratio === "9:16" ? "94%" : "96%",
+  };
+
+  // Dynamic emoji size & margin scale
+  const emojiSizeCqw = Math.max(6, Math.min(13, computedFontSizeCqw * 1.45));
+  const emojiMarginCqh = Math.max(2.5, Math.min(6.5, computedFontSizeCqw * 0.75));
+  
+  const emojiContainerStyle: React.CSSProperties = {
+    marginBottom: `${emojiMarginCqh}cqh`,
+  };
+  
+  const emojiStyle: React.CSSProperties = {
+    fontSize: `${emojiSizeCqw}cqw`,
+  };
+
+  // Dynamic poet size & margin scale
+  const poetMarginCqh = Math.max(3.5, Math.min(9, computedFontSizeCqw * 0.95));
+  
+  const poetContainerStyle: React.CSSProperties = {
+    marginTop: `${poetMarginCqh}cqh`,
+  };
+
+  const poetStyle: React.CSSProperties = {
+    fontSize: `${Math.max(2.6, Math.min(4.6, computedFontSizeCqw * 0.45))}cqw`,
+  };
+
+  // 5. Dynamic paragraph/line spacing (gap between lines of shayari) in cqh
+  // Reduced by 30% to keep spacing tight, premium, and balanced without massive empty gaps
+  let computedParagraphGapCqh = 2.9; 
+  if (ratio === "9:16") {
+    computedParagraphGapCqh = 4.5; 
+  } else if (ratio === "4:5") {
+    computedParagraphGapCqh = 3.5;
+  } else if (ratio === "16:9") {
+    computedParagraphGapCqh = 1.4; 
+  }
+  
+  if (length < 35) {
+    computedParagraphGapCqh *= 1.5; // Moderate boost for short couplets, keeping them tight
+  } else if (length < 60) {
+    computedParagraphGapCqh *= 1.1; // Slight elegant gap boost
+  } else if (length > 100) {
+    computedParagraphGapCqh *= 0.65; // Much tighter gap to avoid vertical overflow for longer verses
+  }
+
+  // Update variables block to use calculated paragraph gap
+  cardVariables["--paragraph-gap"] = `${computedParagraphGapCqh}cqh`;
+
+  const verseContainerStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    gap: "calc(var(--paragraph-gap) * var(--paragraph-gap-scale, 1))",
+  };
 
   return {
     paddingClass,
@@ -504,6 +860,16 @@ function getAutoAdjustedCardSpecs(
     emojiMarginClass,
     poetMarginClass,
     topBarMarginClass,
+    // Smart inline layout properties
+    cardVariables,
+    cardStyle,
+    innerWrapperStyle,
+    textStyle,
+    emojiContainerStyle,
+    emojiStyle,
+    poetContainerStyle,
+    poetStyle,
+    verseContainerStyle, // Added for dynamic paragraph/line spacing
   };
 }
 
@@ -535,6 +901,21 @@ export default function App() {
   const [savedShayaris, setSavedShayaris] = useState<Shayari[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("mood_saved_shayaris");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          return [];
+        }
+      }
+    }
+    return [];
+  });
+
+  // Track all generated/seen shayari texts to ensure we never repeat them
+  const [seenShayariTexts, setSeenShayariTexts] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("mood_seen_shayari_texts");
       if (saved) {
         try {
           return JSON.parse(saved);
@@ -602,6 +983,12 @@ export default function App() {
       localStorage.setItem("mood_is_phone_view", String(isPhoneView));
     }
   }, [isPhoneView]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mood_seen_shayari_texts", JSON.stringify(seenShayariTexts));
+    }
+  }, [seenShayariTexts]);
 
   // Real-time local digital clock sync for Android Status bar
   useEffect(() => {
@@ -742,6 +1129,39 @@ export default function App() {
     setImagePos({ x: 0, y: 0 });
     
     showToast("Card restored to original uncustomized style and text! 🌿");
+  };
+
+  const handleAutoFitText = () => {
+    if (!editingShayari) return;
+
+    const optimalSpecs = getAutoAdjustedCardSpecs(
+      editedRatio,
+      "text-4xl",
+      editedSher,
+      !editingShayari.isAI && !!editingShayari.poet
+    );
+
+    let matchedSize = "text-xl";
+    const fClass = optimalSpecs.fontSizeClass;
+    if (fClass.includes("text-[10px]") || fClass.includes("text-[11px]") || fClass.includes("text-xs") || fClass.includes("text-sm")) {
+      matchedSize = "text-base";
+    } else if (fClass.includes("text-base")) {
+      matchedSize = "text-base";
+    } else if (fClass.includes("text-lg")) {
+      matchedSize = "text-lg";
+    } else if (fClass.includes("text-xl")) {
+      matchedSize = "text-xl";
+    } else if (fClass.includes("text-2xl")) {
+      matchedSize = "text-2xl";
+    } else if (fClass.includes("text-3xl")) {
+      matchedSize = "text-3xl";
+    } else if (fClass.includes("text-4xl")) {
+      matchedSize = "text-4xl";
+    }
+
+    setEditedTextSize(matchedSize);
+    setImagePos({ x: 0, y: 0 });
+    showToast("Text layout fitted to ratio perfection! ✨");
   };
 
   // Drag-to-reposition logic for custom card image
@@ -963,7 +1383,10 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ mood: trimmedInput }),
+        body: JSON.stringify({ 
+          mood: trimmedInput,
+          excludeList: seenShayariTexts.slice(-150)
+        }),
       });
 
       if (!response.ok) {
@@ -974,6 +1397,14 @@ export default function App() {
       const data = await response.json();
       if (data.shayaris && Array.isArray(data.shayaris)) {
         setGeneratedShayaris(data.shayaris.slice(0, 5));
+        
+        // Add new shayaris to the seen list
+        const newTexts = data.shayaris.map((s: Shayari) => s.sher);
+        setSeenShayariTexts((prev) => {
+          const combined = [...prev, ...newTexts];
+          return Array.from(new Set(combined));
+        });
+
         setIsOfflineFallback(!!data.isOfflineFallback);
         showToast("Weaved 5 master verses perfectly matching your mood!");
       } else {
@@ -1260,7 +1691,9 @@ export default function App() {
 
                       const cardSpecs = getAutoAdjustedCardSpecs(
                         (shayari.customRatio || "1:1") as any,
-                        sizeClass
+                        sizeClass,
+                        shayari.sher,
+                        !shayari.isAI && !!shayari.poet
                       );
 
                       return (
@@ -1270,11 +1703,12 @@ export default function App() {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.5, delay: index * 0.1 }}
-                          className={`relative group overflow-hidden rounded-[32px] ${cardSpecs.paddingClass} backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.03)] ${bgClass} border ${activeTheme.cardBorder} ${activeTheme.cardBorderHover} transition-all duration-500 ${
-                            shayari.customRatio === "4:5" ? "aspect-[4/5] flex flex-col justify-between" :
-                            shayari.customRatio === "9:16" ? "aspect-[9/16] flex flex-col justify-between" :
-                            shayari.customRatio === "16:9" ? "aspect-[16/9] flex flex-col justify-between" :
-                            "aspect-square flex flex-col justify-between"
+                          style={{ containerType: "size", ...cardSpecs.cardVariables, ...cardSpecs.cardStyle }}
+                          className={`shayari-card relative group overflow-hidden rounded-[32px] ${cardSpecs.paddingClass} backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.03)] ${bgClass} border ${activeTheme.cardBorder} ${activeTheme.cardBorderHover} transition-all duration-500 flex flex-col justify-center items-center ${
+                            shayari.customRatio === "4:5" ? "aspect-[4/5]" :
+                            shayari.customRatio === "9:16" ? "aspect-[9/16]" :
+                            shayari.customRatio === "16:9" ? "aspect-[16/9]" :
+                            "aspect-square"
                           }`}
                         >
                           {/* Inner glowing core decoration matching selected theme */}
@@ -1314,7 +1748,7 @@ export default function App() {
                           )}
 
                           {/* Card top bar: actions & badges */}
-                          <div className={`flex items-center justify-between ${cardSpecs.topBarMarginClass} border-b ${activeTheme.cardBorder} relative z-10`} data-download-ignore="true">
+                          <div className={`absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 border-b ${activeTheme.cardBorder} z-20`} data-download-ignore="true">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-lg border ${activeTheme.tagClassic} shadow-3xs`}>
                                 #{index + 1 < 10 ? `0${index + 1}` : index + 1}
@@ -1388,23 +1822,53 @@ export default function App() {
                           </div>
 
                           {/* Shayari Core Verses - Redesigned with Oversized Premium font */}
-                          <div className="flex-1 flex flex-col items-center justify-center relative z-10 py-1">
+                          <div 
+                            className="w-full flex flex-col items-center justify-center relative z-10 py-1"
+                            style={{ ...cardSpecs.innerWrapperStyle }}
+                          >
                             {/* Centered Emoji Icon Element */}
-                            <div className={`${cardSpecs.emojiMarginClass} flex items-center justify-center`}>
-                              <span className={`${cardSpecs.emojiClass} filter drop-shadow-sm select-none`}>
+                            <div 
+                              className={`${cardSpecs.emojiMarginClass} flex items-center justify-center`}
+                              style={{ ...cardSpecs.emojiContainerStyle }}
+                            >
+                              <span 
+                                className={`${cardSpecs.emojiClass} filter drop-shadow-sm select-none`}
+                                style={{ ...cardSpecs.emojiStyle }}
+                              >
                                 {emojiVal}
                               </span>
                             </div>
 
-                            {/* Urdu / Hindi Script text */}
-                            <p className={`${cardSpecs.fontSizeClass} ${textClass} text-center ${cardSpecs.leadingClass} whitespace-pre-wrap tracking-wide ${cardSpecs.containerClass} ${fontClass} ${weightClass} transition-all duration-300`}>
-                              {shayari.sher}
-                            </p>
+                            {/* Urdu / Hindi Script text - Spaced naturally with our dynamic paragraph gap system */}
+                            <div 
+                              className="w-full flex flex-col items-center justify-center text-center"
+                              style={{ ...cardSpecs.verseContainerStyle }}
+                            >
+                              {shayari.sher.split('\n').map((line, lineIdx) => {
+                                const trimmed = line.trim();
+                                if (!trimmed) return null;
+                                return (
+                                  <p 
+                                    key={lineIdx}
+                                    className={`${cardSpecs.fontSizeClass} ${textClass} text-center ${cardSpecs.leadingClass} tracking-wide ${cardSpecs.containerClass} ${fontClass} ${weightClass} transition-all duration-300`}
+                                    style={{ ...cardSpecs.textStyle }}
+                                  >
+                                    {trimmed}
+                                  </p>
+                                );
+                              })}
+                            </div>
 
                             {/* Poet Detail */}
                             {!shayari.isAI && shayari.poet && (
-                              <div className={`${cardSpecs.poetMarginClass} flex items-center justify-center`}>
-                                <span className={`text-[8px] font-mono tracking-wider ${activeTheme.poetTag} px-3 py-1 rounded-full uppercase shadow-3xs border`}>
+                              <div 
+                                className={`${cardSpecs.poetMarginClass} flex items-center justify-center`}
+                                style={{ ...cardSpecs.poetContainerStyle }}
+                              >
+                                <span 
+                                  className={`text-[8px] font-mono tracking-wider ${activeTheme.poetTag} px-3 py-1 rounded-full uppercase shadow-3xs border`}
+                                  style={{ ...cardSpecs.poetStyle }}
+                                >
                                   Poet: <span className={`font-sans font-extrabold ${activeTheme.poetBold}`}>{shayari.poet}</span>
                                 </span>
                               </div>
@@ -1487,18 +1951,21 @@ export default function App() {
 
                     const cardSpecs = getAutoAdjustedCardSpecs(
                       (shayari.customRatio || "1:1") as any,
-                      sizeClass
+                      sizeClass,
+                      shayari.sher,
+                      !shayari.isAI && !!shayari.poet
                     );
 
                     return (
                       <div
                         key={shayari.id || index}
                         id={`shayari-card-${shayari.id}`}
-                        className={`relative overflow-hidden rounded-[32px] ${cardSpecs.paddingClass} backdrop-blur-xl ${bgClass} border ${activeTheme.cardBorder} shadow-[0_20px_50px_rgba(0,0,0,0.03)] ${
-                          shayari.customRatio === "4:5" ? "aspect-[4/5] flex flex-col justify-between" :
-                          shayari.customRatio === "9:16" ? "aspect-[9/16] flex flex-col justify-between" :
-                          shayari.customRatio === "16:9" ? "aspect-[16/9] flex flex-col justify-between" :
-                          "aspect-square flex flex-col justify-between"
+                        style={{ containerType: "size", ...cardSpecs.cardVariables, ...cardSpecs.cardStyle }}
+                        className={`shayari-card relative overflow-hidden rounded-[32px] ${cardSpecs.paddingClass} backdrop-blur-xl ${bgClass} border ${activeTheme.cardBorder} shadow-[0_20px_50px_rgba(0,0,0,0.03)] flex flex-col justify-center items-center ${
+                          shayari.customRatio === "4:5" ? "aspect-[4/5]" :
+                          shayari.customRatio === "9:16" ? "aspect-[9/16]" :
+                          shayari.customRatio === "16:9" ? "aspect-[16/9]" :
+                          "aspect-square"
                         }`}
                       >
                         {/* Custom Dragged Image Background if uploaded */}
@@ -1529,7 +1996,7 @@ export default function App() {
                           </div>
                         )}
 
-                        <div className={`flex items-center justify-between ${cardSpecs.topBarMarginClass} border-b ${activeTheme.cardBorder} relative z-10`} data-download-ignore="true">
+                        <div className={`absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 border-b ${activeTheme.cardBorder} z-20`} data-download-ignore="true">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className={`text-[8px] px-2 py-0.5 rounded-full font-sans font-bold uppercase tracking-wider flex items-center gap-0.5 border ${activeTheme.tagMood} shadow-3xs`}>
                               <span>{emojiVal}</span>
@@ -1586,21 +2053,54 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="flex-1 flex flex-col items-center justify-center py-2 relative z-10">
+                        <div 
+                          className="w-full flex flex-col items-center justify-center py-1 relative z-10"
+                          style={{ ...cardSpecs.innerWrapperStyle }}
+                        >
                           {/* Centered Emoji Icon Element */}
-                          <div className="mb-4 flex items-center justify-center">
-                            <span className="text-3xl filter drop-shadow-sm select-none">
+                          <div 
+                            className={`${cardSpecs.emojiMarginClass} flex items-center justify-center`}
+                            style={{ ...cardSpecs.emojiContainerStyle }}
+                          >
+                            <span 
+                              className={`${cardSpecs.emojiClass} filter drop-shadow-sm select-none`}
+                              style={{ ...cardSpecs.emojiStyle }}
+                            >
                               {emojiVal}
                             </span>
                           </div>
 
-                          <p className={`${sizeClass} ${textClass} text-center leading-relaxed whitespace-pre-wrap tracking-wide ${fontClass} ${weightClass}`}>
-                            {shayari.sher}
-                          </p>
+                           {/* Urdu / Hindi Script text - Spaced naturally with our dynamic paragraph gap system */}
+                           <div 
+                             className="w-full flex flex-col items-center justify-center text-center"
+                             style={{ ...cardSpecs.verseContainerStyle }}
+                           >
+                             {shayari.sher.split('\n').map((line, lineIdx) => {
+                               const trimmed = line.trim();
+                               if (!trimmed) return null;
+                               return (
+                                 <p 
+                                   key={lineIdx}
+                                   className={`${cardSpecs.fontSizeClass} ${textClass} text-center ${cardSpecs.leadingClass} tracking-wide ${cardSpecs.containerClass} ${fontClass} ${weightClass} transition-all duration-300`}
+                                   style={{ ...cardSpecs.textStyle }}
+                                 >
+                                   {trimmed}
+                                 </p>
+                               );
+                             })}
+                           </div>
                           {!shayari.isAI && shayari.poet && (
-                            <span className={`mt-5 text-[8px] font-mono tracking-wider ${activeTheme.poetTag} px-2.5 py-0.5 rounded-full border`}>
-                              Poet: <span className={`font-bold ${activeTheme.poetBold}`}>{shayari.poet}</span>
-                            </span>
+                            <div 
+                              className={`${cardSpecs.poetMarginClass} flex items-center justify-center`}
+                              style={{ ...cardSpecs.poetContainerStyle }}
+                            >
+                              <span 
+                                className={`text-[8px] font-mono tracking-wider ${activeTheme.poetTag} px-2.5 py-0.5 rounded-full border`}
+                                style={{ ...cardSpecs.poetStyle }}
+                              >
+                                Poet: <span className={`font-bold ${activeTheme.poetBold}`}>{shayari.poet}</span>
+                              </span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1980,91 +2480,149 @@ export default function App() {
                 <div className="space-y-2">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Live Design Card Preview</span>
                   
-                  {/* Card Draggable Area */}
-                  <div 
-                    id="custom-card-preview"
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
-                    className={`relative overflow-hidden rounded-[24px] p-6 border border-slate-150 shadow-md flex flex-col justify-between transition-all duration-300 ${
-                      editedRatio === "4:5" ? "aspect-[4/5] w-full max-w-[240px] sm:max-w-[260px] mx-auto" :
-                      editedRatio === "9:16" ? "aspect-[9/16] w-full max-w-[180px] sm:max-w-[200px] mx-auto" :
-                      editedRatio === "16:9" ? "aspect-[16/9] w-full max-w-[360px] sm:max-w-[400px] mx-auto" :
-                      "aspect-square w-full max-w-[280px] sm:max-w-[300px] mx-auto"
-                    } ${
-                      editedBgGradient ? `bg-gradient-to-br ${editedBgGradient}` : editedBgColor || "bg-slate-50"
-                    }`}
-                  >
-                    {/* Inner glowing core decoration matching selected theme */}
-                    <div className="absolute -right-12 -bottom-12 w-28 h-28 rounded-full bg-slate-900/5 blur-2xl pointer-events-none" />
+                  {
+                    (() => {
+                      const modalSpecs = getAutoAdjustedCardSpecs(
+                        editedRatio as any,
+                        editedTextSize,
+                        editedSher,
+                        !editingShayari.isAI && !!editingShayari.poet
+                      );
 
-                    {/* Drag instruction overlay if there is an image */}
-                    {editedImage && (
-                      <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-white text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full pointer-events-none z-20">
-                        Drag Image to Position
-                      </div>
-                    )}
-
-                    {/* Base64 Decorative Image Background */}
-                    {editedImage ? (
-                      <div
-                        className={`absolute select-none cursor-move z-0 overflow-hidden ${
-                          editedImageMode === "small" ? "border border-white/20 shadow-inner rounded-2xl" : ""
-                        }`}
-                        style={{
-                          left: "50%",
-                          top: "50%",
-                          transform: `translate(calc(-50% + ${imagePos.x}px), calc(-50% + ${imagePos.y}px)) scale(${editedImageScale}) rotate(${editedImageRotate}deg)`,
-                          width: editedImageMode === "small" ? "140px" : "100%",
-                          height: editedImageMode === "small" ? "140px" : "100%",
-                          opacity: editedImageMode === "small" ? 0.55 : 0.45,
-                        }}
-                        onMouseDown={handleMouseDown}
-                        onTouchStart={handleTouchStart}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                      >
-                        <img
-                          src={editedImage}
-                          alt="drag-preview"
-                          className={`w-full h-full pointer-events-none ${
-                            editedImageMode === "small" ? "object-cover rounded-2xl" :
-                            editedImageMode === "fit" ? "object-contain" :
-                            editedImageMode === "fill" ? "object-fill" :
-                            editedImageMode === "contain" ? "object-contain" :
-                            "object-cover"
+                      return (
+                        <div 
+                          id="custom-card-preview"
+                          onMouseMove={handleMouseMove}
+                          onMouseUp={handleMouseUp}
+                          onMouseLeave={handleMouseUp}
+                          style={{ containerType: "size", ...modalSpecs.cardVariables, ...modalSpecs.cardStyle }}
+                          className={`shayari-card relative overflow-hidden rounded-[24px] ${modalSpecs.paddingClass} border border-slate-150 shadow-md flex flex-col justify-center items-center transition-all duration-300 ${
+                            editedRatio === "4:5" ? "aspect-[4/5] w-full max-w-[240px] sm:max-w-[260px] mx-auto" :
+                            editedRatio === "9:16" ? "aspect-[9/16] w-full max-w-[180px] sm:max-w-[200px] mx-auto" :
+                            editedRatio === "16:9" ? "aspect-[16/9] w-full max-w-[360px] sm:max-w-[400px] mx-auto" :
+                            "aspect-square w-full max-w-[280px] sm:max-w-[300px] mx-auto"
+                          } ${
+                            editedBgGradient ? `bg-gradient-to-br ${editedBgGradient}` : editedBgColor || "bg-slate-50"
                           }`}
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                    ) : (
-                      <div className="absolute -right-2 -bottom-6 text-slate-300 text-8xl font-serif select-none pointer-events-none opacity-20">
-                        ❦
-                      </div>
-                    )}
+                        >
+                          {/* Inner glowing core decoration matching selected theme */}
+                          <div className="absolute -right-12 -bottom-12 w-28 h-28 rounded-full bg-slate-900/5 blur-2xl pointer-events-none" />
 
-                    {/* Card preview top metadata bar */}
-                    <div className="flex justify-between items-center relative z-10 border-b border-black/5 pb-2 mb-2">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] bg-black/5 px-2 py-0.5 rounded font-extrabold flex items-center justify-center">
-                          {editedEmoji}
-                        </span>
-                        <span className="text-[8px] uppercase tracking-wider font-black text-slate-500">
-                          #{editingShayari.id.slice(0, 4).toUpperCase()}
-                        </span>
-                      </div>
-                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400">
-                        Custom Styled
-                      </span>
-                    </div>
+                          {/* Drag instruction overlay if there is an image */}
+                          {editedImage && (
+                            <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-white text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full pointer-events-none z-20">
+                              Drag Image to Position
+                            </div>
+                          )}
 
-                    {/* Card preview shayari verses */}
-                    <div className="flex-1 flex items-center justify-center relative z-10 py-3">
-                      <p className={`${editedTextSize} ${editedTextColor} text-center leading-relaxed whitespace-pre-wrap ${editedFontClass} ${editedIsBold ? "!font-bold" : "!font-normal"} transition-all duration-300 max-w-full`}>
-                        {editedSher || "Your beautiful verse will appear here..."}
-                      </p>
-                    </div>
-                  </div>
+                          {/* Base64 Decorative Image Background */}
+                          {editedImage ? (
+                            <div
+                              className={`absolute select-none cursor-move z-0 overflow-hidden ${
+                                editedImageMode === "small" ? "border border-white/20 shadow-inner rounded-2xl" : ""
+                              }`}
+                              style={{
+                                left: "50%",
+                                top: "50%",
+                                transform: `translate(calc(-50% + ${imagePos.x}px), calc(-50% + ${imagePos.y}px)) scale(${editedImageScale}) rotate(${editedImageRotate}deg)`,
+                                width: editedImageMode === "small" ? "140px" : "100%",
+                                height: editedImageMode === "small" ? "140px" : "100%",
+                                opacity: editedImageMode === "small" ? 0.55 : 0.45,
+                              }}
+                              onMouseDown={handleMouseDown}
+                              onTouchStart={handleTouchStart}
+                              onTouchMove={handleTouchMove}
+                              onTouchEnd={handleTouchEnd}
+                            >
+                              <img
+                                src={editedImage}
+                                alt="drag-preview"
+                                className={`w-full h-full pointer-events-none ${
+                                  editedImageMode === "small" ? "object-cover rounded-2xl" :
+                                  editedImageMode === "fit" ? "object-contain" :
+                                  editedImageMode === "fill" ? "object-fill" :
+                                  editedImageMode === "contain" ? "object-contain" :
+                                  "object-cover"
+                                }`}
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          ) : (
+                            <div className="absolute -right-2 -bottom-6 text-slate-300 text-8xl font-serif select-none pointer-events-none opacity-20">
+                              ❦
+                            </div>
+                          )}
+
+                          {/* Card preview top metadata bar */}
+                          <div className="absolute top-0 left-0 right-0 flex justify-between items-center px-4.5 py-3 border-b border-black/5 z-20">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] bg-black/5 px-2 py-0.5 rounded font-extrabold flex items-center justify-center">
+                                {editedEmoji}
+                              </span>
+                              <span className="text-[8px] uppercase tracking-wider font-black text-slate-500">
+                                #{editingShayari.id.slice(0, 4).toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400">
+                              Custom Styled
+                            </span>
+                          </div>
+
+                          {/* Card preview shayari verses */}
+                          <div 
+                            className="w-full flex flex-col items-center justify-center relative z-10 py-1.5"
+                            style={{ ...modalSpecs.innerWrapperStyle }}
+                          >
+                            {/* Centered Emoji Icon Element */}
+                            <div 
+                              className={`${modalSpecs.emojiMarginClass} flex items-center justify-center`}
+                              style={{ ...modalSpecs.emojiContainerStyle }}
+                            >
+                              <span 
+                                className={`${modalSpecs.emojiClass} filter drop-shadow-sm select-none`}
+                                style={{ ...modalSpecs.emojiStyle }}
+                              >
+                                {editedEmoji}
+                              </span>
+                            </div>
+
+                            {/* Urdu / Hindi Script text - Spaced naturally with our dynamic paragraph gap system */}
+                            <div 
+                              className="w-full flex flex-col items-center justify-center text-center"
+                              style={{ ...modalSpecs.verseContainerStyle }}
+                            >
+                              {(editedSher || "Your beautiful verse will appear here...").split('\n').map((line, lineIdx) => {
+                                const trimmed = line.trim();
+                                if (!trimmed) return null;
+                                return (
+                                  <p 
+                                    key={lineIdx}
+                                    className={`${modalSpecs.fontSizeClass} ${editedTextColor} text-center ${modalSpecs.leadingClass} ${modalSpecs.containerClass} ${editedFontClass} ${editedIsBold ? "!font-bold" : "!font-normal"} transition-all duration-300`}
+                                    style={{ ...modalSpecs.textStyle }}
+                                  >
+                                    {trimmed}
+                                  </p>
+                                );
+                              })}
+                            </div>
+                            {!editingShayari.isAI && editingShayari.poet && (
+                              <div 
+                                className={`${modalSpecs.poetMarginClass} flex items-center justify-center`}
+                                style={{ ...modalSpecs.poetContainerStyle }}
+                              >
+                                <span 
+                                  className={`text-[8px] font-mono tracking-wider ${activeTheme.poetTag} px-2.5 py-0.5 rounded-full border`}
+                                  style={{ ...modalSpecs.poetStyle }}
+                                >
+                                  Poet: <span className={`font-bold ${activeTheme.poetBold}`}>{editingShayari.poet}</span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()
+                  }
                 </div>
 
                 {/* EDIT POETRY TEXT */}
@@ -2109,7 +2667,17 @@ export default function App() {
 
                 {/* CARD RATIO SELECTION */}
                 <div className="space-y-1.5 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Card Aspect Ratio</label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Card Aspect Ratio</label>
+                    <button
+                      type="button"
+                      onClick={handleAutoFitText}
+                      className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider flex items-center gap-1 cursor-pointer bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100/50 hover:bg-indigo-100 transition-all active:scale-95"
+                    >
+                      <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
+                      Fit Text
+                    </button>
+                  </div>
                   <div className="grid grid-cols-4 gap-2">
                     {[
                       { id: "1:1", label: "Square", ratio: "1:1" },
@@ -2241,7 +2809,17 @@ export default function App() {
 
                   {/* Font Size Selection */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Font Size</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Font Size</label>
+                      <button
+                        type="button"
+                        onClick={handleAutoFitText}
+                        className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider flex items-center gap-0.5 cursor-pointer hover:underline transition-all active:scale-95"
+                      >
+                        <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
+                        Auto-Fit
+                      </button>
+                    </div>
                     <select
                       value={editedTextSize}
                       onChange={(e) => setEditedTextSize(e.target.value)}

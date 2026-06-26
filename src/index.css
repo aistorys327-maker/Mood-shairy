@@ -63,3 +63,74 @@
     -webkit-tap-highlight-color: transparent;
   }
 }
+
+/* 
+ * Container Query scaling system for Shayari Cards
+ * This progressively scales down fonts, line-heights, gaps, and padding
+ * when cards are rendered at small sizes (e.g., inside small previews or narrow grids),
+ * and scales them up for large display/download sizes,
+ * ensuring that text never clips or overflows the fixed aspect ratio boundaries.
+ */
+@container (max-width: 320px) or (max-height: 320px) {
+  .shayari-card {
+    --font-size-scale: 0.88;
+    --card-pt-scale: 0.8;
+    --card-pb-scale: 0.8;
+    --line-height-scale: 0.95;
+    --paragraph-gap-scale: 0.85;
+    --vertical-shift-scale: 0.85;
+    --inner-height-scale: 0.95;
+  }
+}
+
+@container (max-width: 260px) or (max-height: 260px) {
+  .shayari-card {
+    --font-size-scale: 0.78;
+    --card-pt-scale: 0.7;
+    --card-pb-scale: 0.7;
+    --line-height-scale: 0.9;
+    --paragraph-gap-scale: 0.75;
+    --vertical-shift-scale: 0.75;
+    --inner-height-scale: 0.9;
+  }
+}
+
+@container (max-width: 190px) or (max-height: 190px) {
+  .shayari-card {
+    --font-size-scale: 0.65;
+    --card-pt-scale: 0.55;
+    --card-pb-scale: 0.55;
+    --line-height-scale: 0.85;
+    --paragraph-gap-scale: 0.6;
+    --vertical-shift-scale: 0.6;
+    --inner-height-scale: 0.85;
+  }
+}
+
+/* Scaled up settings for larger display views, modals, and download outputs */
+@container (min-width: 460px) and (min-height: 460px) {
+  .shayari-card {
+    --font-size-scale: 1.08;
+    --line-height-scale: 1.03;
+    --paragraph-gap-scale: 1.08;
+    --inner-height-scale: 1.02;
+  }
+}
+
+@container (min-width: 600px) and (min-height: 600px) {
+  .shayari-card {
+    --font-size-scale: 1.18;
+    --line-height-scale: 1.06;
+    --paragraph-gap-scale: 1.18;
+    --inner-height-scale: 1.05;
+  }
+}
+
+@container (min-width: 800px) and (min-height: 800px) {
+  .shayari-card {
+    --font-size-scale: 1.28;
+    --line-height-scale: 1.1;
+    --paragraph-gap-scale: 1.28;
+    --inner-height-scale: 1.08;
+  }
+}
