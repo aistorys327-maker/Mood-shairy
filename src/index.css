@@ -1,4 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Outfit:wght@300..800&family=Fira+Code:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400..700&family=Cinzel+Decorative:wght@400;700&family=Great+Vibes&family=Sacramento&family=Parisienne&family=Alex+Brush&family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Pacifico&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300..700&family=Yatra+One&family=Rozha+One&family=Halant:wght@300..700&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Aref+Ruqaa:wght@400;700&family=Reem+Kufi:wght@400..700&family=Noto+Nastaliq+Urdu:wght@400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300..800&family=Raleway:ital,wght@0,300..800;1,300..800&family=Poppins:wght@300..800&family=Oswald:wght@300..700&family=Quicksand:wght@300..700&family=Merriweather:ital,wght@0,300..900;1,300..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Serif+Display:ital@0;1&family=Space+Grotesk:wght@300..700&family=Syne:wght@400..800&family=Marcellus&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cardo:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,200..900;1,200..900&family=Prata&family=Italiana&family=Bodoni+Moda:ital,wght@0,400..900;1,400..900&family=Yeseva+One&family=Abhaya+Libre:wght@400..800&family=Rajdhani:wght@400..700&family=JetBrains+Mono:wght@300..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Monsieur+La+Doulaise&family=Pinyon+Script&family=Tangerine:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300..800&family=Bebas+Neue&family=Satisfy&family=Mukta:wght@300..800&family=Hind:wght@300..700&family=Noto+Sans+Devanagari:wght@300..900&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -32,6 +39,199 @@
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   font-weight: 400;
   letter-spacing: 0;
+}
+
+/* Premium Serifs */
+.font-style-royal {
+  font-family: "Cinzel", Georgia, serif;
+  letter-spacing: 0.04em;
+}
+
+.font-style-editorial {
+  font-family: "Merriweather", Georgia, serif;
+}
+
+.font-style-literary {
+  font-family: "EB Garamond", Georgia, serif;
+}
+
+.font-style-bookish {
+  font-family: "Libre Baskerville", Georgia, serif;
+}
+
+.font-style-magazine {
+  font-family: "DM Serif Display", serif;
+}
+
+.font-style-cardo {
+  font-family: "Cardo", serif;
+}
+
+.font-style-luxury {
+  font-family: "Crimson Pro", Georgia, serif;
+}
+
+.font-style-prata {
+  font-family: "Prata", serif;
+}
+
+.font-style-bodoni {
+  font-family: "Bodoni Moda", serif;
+}
+
+.font-style-yeseva {
+  font-family: "Yeseva One", serif;
+}
+
+.font-style-abhaya {
+  font-family: "Abhaya Libre", serif;
+}
+
+/* Script & Calligraphy */
+.font-style-majestic {
+  font-family: "Great Vibes", cursive;
+}
+
+.font-style-vintage {
+  font-family: "Sacramento", cursive;
+}
+
+.font-style-french {
+  font-family: "Parisienne", cursive;
+}
+
+.font-style-artistic {
+  font-family: "Alex Brush", cursive;
+}
+
+.font-style-playful {
+  font-family: "Dancing Script", cursive;
+}
+
+.font-style-retro {
+  font-family: "Pacifico", cursive;
+}
+
+.font-style-ornate {
+  font-family: "Monsieur La Doulaise", cursive;
+}
+
+.font-style-highclass {
+  font-family: "Pinyon Script", cursive;
+}
+
+.font-style-tall {
+  font-family: "Tangerine", cursive;
+  font-size: 1.15em;
+}
+
+/* Handwritten, Hindi & Urdu Displays */
+.font-style-kalam {
+  font-family: "Kalam", cursive;
+}
+
+.font-style-yatra {
+  font-family: "Yatra One", cursive;
+}
+
+.font-style-rozha {
+  font-family: "Rozha One", serif;
+}
+
+.font-style-halant {
+  font-family: "Halant", serif;
+}
+
+.font-style-amiri {
+  font-family: "Amiri", serif;
+}
+
+.font-style-aref {
+  font-family: "Aref Ruqaa", serif;
+}
+
+.font-style-reem {
+  font-family: "Reem Kufi", sans-serif;
+}
+
+.font-style-nastaliq {
+  font-family: "Noto Nastaliq Urdu", serif;
+  line-height: 1.8;
+}
+
+.font-style-handdrawn {
+  font-family: "Caveat", cursive;
+}
+
+/* Premium Sans-Serifs */
+.font-style-geometric {
+  font-family: "Montserrat", sans-serif;
+}
+
+.font-style-slim {
+  font-family: "Raleway", sans-serif;
+}
+
+.font-style-rounded {
+  font-family: "Poppins", sans-serif;
+}
+
+.font-style-narrow {
+  font-family: "Oswald", sans-serif;
+}
+
+.font-style-quicksand {
+  font-family: "Quicksand", sans-serif;
+}
+
+.font-style-tech {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.font-style-avantgarde {
+  font-family: "Syne", sans-serif;
+  font-weight: 700;
+}
+
+.font-style-roman {
+  font-family: "Italiana", serif;
+}
+
+.font-style-future {
+  font-family: "Rajdhani", sans-serif;
+}
+
+.font-style-jetbrains {
+  font-family: "JetBrains Mono", monospace;
+}
+
+.font-style-cinzeldec {
+  font-family: "Cinzel Decorative", cursive;
+}
+
+.font-style-nunito {
+  font-family: "Nunito", sans-serif;
+}
+
+.font-style-bebas {
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.font-style-satisfy {
+  font-family: "Satisfy", cursive;
+}
+
+.font-style-mukta {
+  font-family: "Mukta", sans-serif;
+}
+
+.font-style-hind {
+  font-family: "Hind", sans-serif;
+}
+
+.font-style-notodev {
+  font-family: "Noto Sans Devanagari", sans-serif;
 }
 
 /* Custom premium styling utilities */

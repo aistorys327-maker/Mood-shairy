@@ -26,7 +26,7 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const { mood, excludeList } = JSON.parse(event.body || "{}");
+    const { mood, excludeList, language } = JSON.parse(event.body || "{}");
     if (!mood || !mood.trim()) {
       return {
         statusCode: 400,
@@ -37,6 +37,7 @@ export const handler: Handler = async (event) => {
 
     const trimmedInput = mood.trim();
     const ai = getGeminiClient();
+    const targetLanguage = (language || "hindi").toLowerCase();
 
     let exclusionInstruction = "";
     if (excludeList && Array.isArray(excludeList) && excludeList.length > 0) {
@@ -45,15 +46,48 @@ export const handler: Handler = async (event) => {
         `\nYou must generate completely brand new, unique, and fresh verses that are totally different from the above list.`;
     }
 
-    const prompt = `Generate 5 original Hindi shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
-Write exactly 5 completely new, unique, and fresh Hindi or Urdu shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
+    let languagePrompt = "";
+    let sherDescription = "";
+    if (targetLanguage === "urdu") {
+      languagePrompt = `Generate 5 original Urdu shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
+Write exactly 5 completely new, unique, and fresh Urdu shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
 Each shayari must be beautifully crafted and emotionally rich, containing exactly 2 to 4 lines.
+The primary 'sher' field MUST be written strictly and entirely in beautiful original Urdu Nastaliq script (NOT Devanagari, NOT Hinglish).
 For each shayari, provide the following pieces of information:
-1. Devanagari Hindi text (using clean original Hindi script and layout split by newline characters).
-2. Latin transliteration / Hinglish (representing the Urdu or Hindi pronunciation cleanly).
-3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses.
+1. Urdu Nastaliq text (using clean original Urdu Nastaliq script and layout split by newline characters in the 'sher' field).
+2. Latin transliteration / Hinglish (representing the Urdu pronunciation cleanly in the 'transliteration' field).
+3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses (in the 'translation' field).
 4. Name of the poet (could be Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or 'Traditional' if anonymous/classical).
-5. The associated mood label.${exclusionInstruction}`;
+5. The associated mood label.`;
+      sherDescription = "2 to 4 lines of original Shayari strictly in beautiful Urdu Nastaliq script (Arabic script for Urdu), separated by newlines";
+    } else if (targetLanguage === "hinglish") {
+      languagePrompt = `Generate 5 original Hinglish shayaris (Hindi/Urdu written in Latin/Roman script). Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
+Write exactly 5 completely new, unique, and fresh Hinglish shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
+Each shayari must be beautifully crafted and emotionally rich, containing exactly 2 to 4 lines.
+The primary 'sher' field MUST be written strictly and entirely in Latin/Roman script as Hinglish (NOT Devanagari, NOT Urdu Nastaliq script).
+For each shayari, provide the following pieces of information:
+1. Hinglish text (using clean Latin/Roman script representation of Hindi/Urdu, split by newline characters in the 'sher' field).
+2. Latin transliteration / Hinglish (representing the Urdu or Hindi pronunciation cleanly in the 'transliteration' field).
+3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses (in the 'translation' field).
+4. Name of the poet (could be Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or 'Traditional' if anonymous/classical).
+5. The associated mood label.`;
+      sherDescription = "2 to 4 lines of original Shayari strictly in beautiful Hinglish (Latin/Roman script representing Hindi/Urdu pronunciation), separated by newlines";
+    } else {
+      // Default: Hindi
+      languagePrompt = `Generate 5 original Hindi shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
+Write exactly 5 completely new, unique, and fresh Hindi shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
+Each shayari must be beautifully crafted and emotionally rich, containing exactly 2 to 4 lines.
+The primary 'sher' field MUST be written strictly and entirely in beautiful Devanagari Hindi script (NOT Urdu Nastaliq script, NOT Hinglish).
+For each shayari, provide the following pieces of information:
+1. Devanagari Hindi text (using clean original Hindi script and layout split by newline characters in the 'sher' field).
+2. Latin transliteration / Hinglish (representing the Hindi pronunciation cleanly in the 'transliteration' field).
+3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses (in the 'translation' field).
+4. Name of the poet (could be Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or 'Traditional' if anonymous/classical).
+5. The associated mood label.`;
+      sherDescription = "2 to 4 lines of original Shayari strictly in beautiful Hindi Devanagari script, separated by newlines";
+    }
+
+    const prompt = `${languagePrompt}${exclusionInstruction}`;
 
     const schemas = {
       type: Type.ARRAY,
@@ -61,8 +95,8 @@ For each shayari, provide the following pieces of information:
         type: Type.OBJECT,
         properties: {
           id: { type: Type.STRING, description: "A unique random string ID for this card" },
-          sher: { type: Type.STRING, description: "2 to 4 lines of original Shayari in beautiful Hindi Devanagari script, separated by newlines" },
-          transliteration: { type: Type.STRING, description: "Hinglish / Latin transliteration of the Hindi script" },
+          sher: { type: Type.STRING, description: sherDescription },
+          transliteration: { type: Type.STRING, description: "Hinglish / Latin transliteration of the shayari" },
           translation: { type: Type.STRING, description: "A highly elegant English translation of the couplet" },
           poet: { type: Type.STRING, description: "Name of the writer/poet, or Traditional" },
           mood: { type: Type.STRING, description: "Short feeling category of the generated poem (e.g., love, sad, motivated, etc.)" }
@@ -72,7 +106,7 @@ For each shayari, provide the following pieces of information:
     };
 
     // Try multiple model endpoints to bypass single-model transient high traffic or 503 limits
-    const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"];
+    const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
     let responseText = "";
     let generationSuccessful = false;
 

@@ -1,9 +1,9 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { DEFAULT_SHAYARIS } from "./src/data";
 
 dotenv.config();
 
@@ -28,87 +28,17 @@ const getGeminiClient = () => {
   });
 };
 
-// Offline intelligent fallback to matching classical masterpieces if Gemini is down or key is missing
-const getOfflineFallbackShayaris = (userMood: string): any[] => {
-  const normalizedInput = userMood.toLowerCase().trim();
-  
-  // 1. Map typical keywords/synonyms to our categories
-  let targetCategory = "";
-  if (normalizedInput.includes("love") || normalizedInput.includes("pyar") || normalizedInput.includes("pyaar") || normalizedInput.includes("ishq") || normalizedInput.includes("romance") || normalizedInput.includes("romantic") || normalizedInput.includes("dil") || normalizedInput.includes("mohabbat")) {
-    targetCategory = "love";
-  } else if (normalizedInput.includes("sad") || normalizedInput.includes("dard") || normalizedInput.includes("tanhai") || normalizedInput.includes("breakup") || normalizedInput.includes("broken") || normalizedInput.includes("hurt") || normalizedInput.includes("pain") || normalizedInput.includes("lonely") || normalizedInput.includes("alone")) {
-    targetCategory = "sad";
-  } else if (normalizedInput.includes("attitude") || normalizedInput.includes("tevar") || normalizedInput.includes("style") || normalizedInput.includes("swag") || normalizedInput.includes("king") || normalizedInput.includes("ghuroor")) {
-    targetCategory = "attitude";
-  } else if (normalizedInput.includes("motivation") || normalizedInput.includes("motivational") || normalizedInput.includes("success") || normalizedInput.includes("inspire") || normalizedInput.includes("himmat") || normalizedInput.includes("determination") || normalizedInput.includes("koshish")) {
-    targetCategory = "motivational";
-  } else if (normalizedInput.includes("friend") || normalizedInput.includes("friendship") || normalizedInput.includes("dost") || normalizedInput.includes("yaari") || normalizedInput.includes("dosti") || normalizedInput.includes("yaar")) {
-    targetCategory = "friendship";
-  } else if (normalizedInput.includes("funny") || normalizedInput.includes("laugh") || normalizedInput.includes("joke") || normalizedInput.includes("comedy") || normalizedInput.includes("masti")) {
-    targetCategory = "funny";
-  }
-
-  // 2. Score all available shayaris based on category and word matching
-  const inputWords = normalizedInput.split(/\s+/).filter(w => w.length > 2);
-  
-  const scored = DEFAULT_SHAYARIS.map(s => {
-    let score = 0;
-    
-    // Category match is highest priority
-    if (targetCategory && s.mood === targetCategory) {
-      score += 15;
-    } else if (s.mood === normalizedInput) {
-      score += 20;
-    }
-    
-    // Check for word matches in text fields
-    for (const word of inputWords) {
-      if (s.mood.toLowerCase().includes(word)) score += 5;
-      if (s.transliteration.toLowerCase().includes(word)) score += 3;
-      if (s.translation.toLowerCase().includes(word)) score += 2;
-      if (s.sher.toLowerCase().includes(word)) score += 3;
-    }
-    
-    return { ...s, score };
-  });
-
-  // 3. Filter and sort by score descending, then select 5 items
-  const matched = scored.filter(s => s.score > 0);
-  let selected: any[] = [];
-  
-  if (matched.length >= 3) {
-    matched.sort((b, a) => a.score - b.score);
-    const pool = matched.slice(0, 10);
-    // Shuffle the top pool slightly to keep responses fresh and dynamic
-    selected = pool.sort(() => 0.5 - Math.random()).slice(0, 5);
-  } else {
-    // Return a beautiful dynamic random selection
-    selected = [...DEFAULT_SHAYARIS].sort(() => 0.5 - Math.random()).slice(0, 5);
-  }
-
-  // 4. Return formatted shayaris matching the exact schema
-  return selected.map(s => ({
-    id: `fallback-${s.id}-${Math.random().toString(36).substring(2, 7)}`,
-    sher: s.sher,
-    transliteration: s.transliteration,
-    translation: s.translation,
-    poet: s.poet,
-    mood: s.mood,
-    isAI: false
-  }));
-};
-
 // API Endpoint to generate 5 beautiful Hindi/Urdu shayaris based on user mood (100% Pure Gemini AI)
 app.post("/api/generate", async (req, res) => {
-  const { mood, excludeList } = req.body;
-  if (!mood || !mood.trim()) {
-    return res.status(400).json({ error: "Pehle apna mood likhiye." });
-  }
-
-  const trimmedInput = mood.trim();
-
   try {
+    const { mood, excludeList, language } = req.body;
+    if (!mood || !mood.trim()) {
+      return res.status(400).json({ error: "Pehle apna mood likhiye." });
+    }
+
+    const trimmedInput = mood.trim();
     const ai = getGeminiClient();
+    const targetLanguage = (language || "hindi").toLowerCase();
 
     let exclusionInstruction = "";
     if (excludeList && Array.isArray(excludeList) && excludeList.length > 0) {
@@ -117,15 +47,48 @@ app.post("/api/generate", async (req, res) => {
         `\nYou must generate completely brand new, unique, and fresh verses that are totally different from the above list.`;
     }
 
-    const prompt = `Generate 5 original Hindi shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
-Write exactly 5 completely new, unique, and fresh Hindi or Urdu shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
+    let languagePrompt = "";
+    let sherDescription = "";
+    if (targetLanguage === "urdu") {
+      languagePrompt = `Generate 5 original Urdu shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
+Write exactly 5 completely new, unique, and fresh Urdu shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
 Each shayari must be beautifully crafted and emotionally rich, containing exactly 2 to 4 lines.
+The primary 'sher' field MUST be written strictly and entirely in beautiful original Urdu Nastaliq script (NOT Devanagari, NOT Hinglish).
 For each shayari, provide the following pieces of information:
-1. Devanagari Hindi text (using clean original Hindi script and layout split by newline characters).
-2. Latin transliteration / Hinglish (representing the Urdu or Hindi pronunciation cleanly).
-3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses.
+1. Urdu Nastaliq text (using clean original Urdu Nastaliq script and layout split by newline characters in the 'sher' field).
+2. Latin transliteration / Hinglish (representing the Urdu pronunciation cleanly in the 'transliteration' field).
+3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses (in the 'translation' field).
 4. Name of the poet (could be Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or 'Traditional' if anonymous/classical).
-5. The associated mood label.${exclusionInstruction}`;
+5. The associated mood label.`;
+      sherDescription = "2 to 4 lines of original Shayari strictly in beautiful Urdu Nastaliq script (Arabic script for Urdu), separated by newlines";
+    } else if (targetLanguage === "hinglish") {
+      languagePrompt = `Generate 5 original Hinglish shayaris (Hindi/Urdu written in Latin/Roman script). Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
+Write exactly 5 completely new, unique, and fresh Hinglish shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
+Each shayari must be beautifully crafted and emotionally rich, containing exactly 2 to 4 lines.
+The primary 'sher' field MUST be written strictly and entirely in Latin/Roman script as Hinglish (NOT Devanagari, NOT Urdu Nastaliq script).
+For each shayari, provide the following pieces of information:
+1. Hinglish text (using clean Latin/Roman script representation of Hindi/Urdu, split by newline characters in the 'sher' field).
+2. Latin transliteration / Hinglish (representing the Urdu or Hindi pronunciation cleanly in the 'transliteration' field).
+3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses (in the 'translation' field).
+4. Name of the poet (could be Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or 'Traditional' if anonymous/classical).
+5. The associated mood label.`;
+      sherDescription = "2 to 4 lines of original Shayari strictly in beautiful Hinglish (Latin/Roman script representing Hindi/Urdu pronunciation), separated by newlines";
+    } else {
+      // Default: Hindi
+      languagePrompt = `Generate 5 original Hindi shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
+Write exactly 5 completely new, unique, and fresh Hindi shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
+Each shayari must be beautifully crafted and emotionally rich, containing exactly 2 to 4 lines.
+The primary 'sher' field MUST be written strictly and entirely in beautiful Devanagari Hindi script (NOT Urdu Nastaliq script, NOT Hinglish).
+For each shayari, provide the following pieces of information:
+1. Devanagari Hindi text (using clean original Hindi script and layout split by newline characters in the 'sher' field).
+2. Latin transliteration / Hinglish (representing the Hindi pronunciation cleanly in the 'transliteration' field).
+3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses (in the 'translation' field).
+4. Name of the poet (could be Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or 'Traditional' if anonymous/classical).
+5. The associated mood label.`;
+      sherDescription = "2 to 4 lines of original Shayari strictly in beautiful Hindi Devanagari script, separated by newlines";
+    }
+
+    const prompt = `${languagePrompt}${exclusionInstruction}`;
 
     const schemas = {
       type: Type.ARRAY,
@@ -133,8 +96,8 @@ For each shayari, provide the following pieces of information:
         type: Type.OBJECT,
         properties: {
           id: { type: Type.STRING, description: "A unique random string ID for this card" },
-          sher: { type: Type.STRING, description: "2 to 4 lines of original Shayari in beautiful Hindi Devanagari script, separated by newlines" },
-          transliteration: { type: Type.STRING, description: "Hinglish / Latin transliteration of the Hindi script" },
+          sher: { type: Type.STRING, description: sherDescription },
+          transliteration: { type: Type.STRING, description: "Hinglish / Latin transliteration of the shayari" },
           translation: { type: Type.STRING, description: "A highly elegant English translation of the couplet" },
           poet: { type: Type.STRING, description: "Name of the writer/poet, or Traditional" },
           mood: { type: Type.STRING, description: "Short feeling category of the generated poem (e.g., love, sad, motivated, etc.)" }
@@ -181,22 +144,126 @@ For each shayari, provide the following pieces of information:
       }
     }
 
-    // Fall back to local curated masterpieces if model generation failed or returned empty
-    console.log("Gemini model generation failed or empty. Resorting to premium curated offline fallback...");
-    const fallbackShayaris = getOfflineFallbackShayaris(trimmedInput);
-    return res.json({ shayaris: fallbackShayaris, isOfflineFallback: true });
+    throw new Error("Unable to generate new shayaris from any Gemini AI models. Please ensure your GEMINI_API_KEY is correct or try again shortly.");
 
   } catch (error: any) {
-    console.error("Critical Generation Error (Initiating Graceful Offline Fallback):", error);
-    try {
-      const fallbackShayaris = getOfflineFallbackShayaris(trimmedInput);
-      return res.json({ shayaris: fallbackShayaris, isOfflineFallback: true });
-    } catch (fallbackError) {
-      console.error("Failed to generate offline fallback:", fallbackError);
-      return res.status(500).json({ 
-        error: "Gemini AI was unable to generate new shayaris and local fallback failed. Please verify your API key and try again in a moment." 
-      });
+    console.error("Critical Generation Error:", error);
+    return res.status(500).json({ 
+      error: error?.message || "Gemini AI was unable to generate new shayaris. Please verify your API key and try again in a moment." 
+    });
+  }
+});
+
+// API Endpoint to translate an existing shayari to a target language instantly using Gemini 3.5
+app.post("/api/translate", async (req, res) => {
+  try {
+    const { text, targetLanguage, poet, mood } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: "No text provided for translation." });
     }
+    if (!targetLanguage) {
+      return res.status(400).json({ error: "No target language provided." });
+    }
+
+    const ai = getGeminiClient();
+    const targetLang = targetLanguage.toLowerCase();
+
+    let targetDetails = "";
+    if (targetLang === "urdu") {
+      targetDetails = "beautiful original Urdu script in Nastaliq (Arabic/Persian characters, NOT Devanagari Hindi, NOT Latin/Roman/Hinglish characters)";
+    } else if (targetLang === "hinglish") {
+      targetDetails = "Hinglish (Hindi/Urdu pronunciation represented in Latin/Roman script, NOT original Hindi script, NOT Urdu Nastaliq script)";
+    } else {
+      targetDetails = "beautiful Devanagari Hindi script (NOT Urdu Nastaliq, NOT Latin/Roman/Hinglish characters)";
+    }
+
+    const prompt = `You are a master poet and translator. Translate the following poetry/shayari into ${targetDetails}.
+Maintain exactly the same meaning, emotion, tone, poetic style, and rhythm as the original.
+Only replace the poetry language of the text. Do not generate a new poem. Keep the line structure (exactly the same number of lines) identical to the original.
+
+Original poetry:
+${text.trim()}
+
+${poet ? `Written in the style of/by poet: ${poet}` : ""}
+${mood ? `Matching the mood/emotion: ${mood}` : ""}
+
+Return the translated poetry text inside a JSON object with a single key 'translatedText' containing the translated lines separated by newlines. Do not include any other commentary or explanations.`;
+
+    const schemas = {
+      type: Type.OBJECT,
+      properties: {
+        translatedText: { 
+          type: Type.STRING, 
+          description: "The translated poetry lines, maintaining exact structure and line breaks, in the target script/language" 
+        }
+      },
+      required: ["translatedText"]
+    };
+
+    const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+    let responseText = "";
+    let translationSuccessful = false;
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Attempting translation using model: ${modelName}`);
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: schemas,
+            temperature: 0.3, // Lower temperature to keep the exact meaning and tone
+          },
+        });
+
+        if (response.text) {
+          responseText = response.text;
+          translationSuccessful = true;
+          console.log(`Successfully translated using ${modelName}`);
+          break;
+        }
+      } catch (err: any) {
+        console.warn(`Translation Model ${modelName} returned an error:`, err?.message || err);
+      }
+    }
+
+    if (translationSuccessful && responseText) {
+      const parsed = JSON.parse(responseText);
+      if (parsed.translatedText) {
+        return res.json({ translatedText: parsed.translatedText });
+      }
+    }
+
+    throw new Error("Unable to translate using Gemini AI models.");
+
+  } catch (error: any) {
+    console.error("Translation Error:", error);
+    return res.status(500).json({ 
+      error: error?.message || "Gemini AI was unable to translate the poetry." 
+    });
+  }
+});
+
+// Ensure public/assets/card_styles directory exists and serve it statically
+const cardStylesDir = path.join(process.cwd(), "public", "assets", "card_styles");
+if (!fs.existsSync(cardStylesDir)) {
+  fs.mkdirSync(cardStylesDir, { recursive: true });
+}
+app.use("/assets/card_styles", express.static(cardStylesDir));
+
+// API Endpoint to scan and list all card styles (horizontal images) from the directory dynamically
+app.get("/api/card-styles", (req, res) => {
+  try {
+    const files = fs.readdirSync(cardStylesDir);
+    const validExtensions = [".jpg", ".jpeg", ".png", ".webp", ".svg"];
+    const cardStyles = files
+      .filter((file) => validExtensions.includes(path.extname(file).toLowerCase()))
+      .map((file) => `/assets/card_styles/${file}`);
+    return res.json({ cardStyles });
+  } catch (error: any) {
+    console.error("Error reading card styles folder:", error);
+    return res.status(500).json({ error: "Failed to scan card styles directory.", cardStyles: [] });
   }
 });
 
