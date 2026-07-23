@@ -37,5 +37,11 @@ export interface Shayari {
   customTextWrapping?: "wrap" | "nowrap";
   customHideEmoji?: boolean;
   customHideWatermark?: boolean;
+  // Future Premium Watermark Features
+  customWatermarkText?: string;
+  customWatermarkPosition?: "top" | "bottom" | "center" | "top-right" | "top-left" | "bottom-right" | "bottom-left";
+  customWatermarkOpacity?: number;
+  customWatermarkEnabled?: boolean;
   isCustomized?: boolean;
+  customCardStyleBg?: string;
 }

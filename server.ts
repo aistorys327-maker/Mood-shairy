@@ -28,6 +28,63 @@ const getGeminiClient = () => {
   });
 };
 
+// Helper function to detect and parse rate limit / quota exceeded errors from Gemini API
+function parseRateLimitError(err: any) {
+  if (!err) return { isRateLimit: false, retryAfterSeconds: null, fullError: null };
+
+  const status = err.status || err.statusCode || err.response?.status || err.response?.statusCode;
+  const msg = typeof err.message === "string" ? err.message : JSON.stringify(err);
+  const msgLower = msg.toLowerCase();
+
+  const is429Status = status === 429;
+  const isRateLimitMsg =
+    msgLower.includes("429") ||
+    msgLower.includes("resource_exhausted") ||
+    msgLower.includes("quota") ||
+    msgLower.includes("rate limit") ||
+    msgLower.includes("too many requests");
+
+  const isRateLimit = is429Status || isRateLimitMsg;
+
+  let retryAfterSeconds: number | null = null;
+
+  if (isRateLimit) {
+    // 1. Check response headers for Retry-After
+    const retryHeader = err.response?.headers?.get?.("retry-after") ||
+                        err.response?.headers?.["retry-after"] ||
+                        err.headers?.["retry-after"] ||
+                        err.headers?.get?.("retry-after");
+
+    if (retryHeader) {
+      const parsed = parseInt(String(retryHeader), 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        retryAfterSeconds = parsed;
+      }
+    }
+
+    // 2. Check for retryAfter in error body or message pattern
+    if (!retryAfterSeconds && msg) {
+      const match = msg.match(/retry\s+(?:in|after)\s+(\d+)\s*s?/i) || msg.match(/reset\s+(?:in|after)\s+(\d+)\s*s?/i);
+      if (match && match[1]) {
+        const secs = parseInt(match[1], 10);
+        if (!isNaN(secs) && secs > 0) {
+          retryAfterSeconds = secs;
+        }
+      }
+    }
+
+    if (!retryAfterSeconds && typeof err.retryAfterSeconds === "number" && err.retryAfterSeconds > 0) {
+      retryAfterSeconds = err.retryAfterSeconds;
+    }
+  }
+
+  return {
+    isRateLimit,
+    retryAfterSeconds: retryAfterSeconds || null,
+    fullError: err
+  };
+}
+
 // API Endpoint to generate 5 beautiful Hindi/Urdu shayaris based on user mood (100% Pure Gemini AI)
 app.post("/api/generate", async (req, res) => {
   try {
@@ -110,6 +167,7 @@ For each shayari, provide the following pieces of information:
     const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
     let responseText = "";
     let generationSuccessful = false;
+    let rateLimitInfo: { isRateLimit: boolean; retryAfterSeconds: number | null; fullError: any } | null = null;
 
     for (const modelName of modelsToTry) {
       try {
@@ -132,6 +190,10 @@ For each shayari, provide the following pieces of information:
         }
       } catch (err: any) {
         console.warn(`Model ${modelName} returned an error or is unavailable:`, err?.message || err);
+        const rl = parseRateLimitError(err);
+        if (rl.isRateLimit) {
+          rateLimitInfo = rl;
+        }
       }
     }
 
@@ -144,12 +206,32 @@ For each shayari, provide the following pieces of information:
       }
     }
 
-    throw new Error("Unable to generate new shayaris from any Gemini AI models. Please ensure your GEMINI_API_KEY is correct or try again shortly.");
+    if (rateLimitInfo && rateLimitInfo.isRateLimit) {
+      console.error("Gemini API Rate Limit / Quota Exceeded (429):", rateLimitInfo.fullError);
+      return res.status(429).json({
+        error: "AI is temporarily busy",
+        isRateLimit: true,
+        retryAfterSeconds: rateLimitInfo.retryAfterSeconds,
+        details: rateLimitInfo.fullError?.message || "RESOURCE_EXHAUSTED"
+      });
+    }
+
+    throw new Error("Unable to generate new shayaris from any Gemini AI models. Please try again shortly.");
 
   } catch (error: any) {
+    const rl = parseRateLimitError(error);
+    if (rl.isRateLimit) {
+      console.error("Critical Gemini API Rate Limit Error (429):", error);
+      return res.status(429).json({
+        error: "AI is temporarily busy",
+        isRateLimit: true,
+        retryAfterSeconds: rl.retryAfterSeconds,
+        details: error?.message || "RESOURCE_EXHAUSTED"
+      });
+    }
     console.error("Critical Generation Error:", error);
     return res.status(500).json({ 
-      error: error?.message || "Gemini AI was unable to generate new shayaris. Please verify your API key and try again in a moment." 
+      error: "Gemini AI was unable to generate new shayaris. Please try again in a moment." 
     });
   }
 });
@@ -203,6 +285,7 @@ Return the translated poetry text inside a JSON object with a single key 'transl
     const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
     let responseText = "";
     let translationSuccessful = false;
+    let rateLimitInfo: { isRateLimit: boolean; retryAfterSeconds: number | null; fullError: any } | null = null;
 
     for (const modelName of modelsToTry) {
       try {
@@ -225,6 +308,10 @@ Return the translated poetry text inside a JSON object with a single key 'transl
         }
       } catch (err: any) {
         console.warn(`Translation Model ${modelName} returned an error:`, err?.message || err);
+        const rl = parseRateLimitError(err);
+        if (rl.isRateLimit) {
+          rateLimitInfo = rl;
+        }
       }
     }
 
@@ -235,31 +322,62 @@ Return the translated poetry text inside a JSON object with a single key 'transl
       }
     }
 
+    if (rateLimitInfo && rateLimitInfo.isRateLimit) {
+      console.error("Gemini API Translation Rate Limit Exceeded (429):", rateLimitInfo.fullError);
+      return res.status(429).json({
+        error: "AI is temporarily busy",
+        isRateLimit: true,
+        retryAfterSeconds: rateLimitInfo.retryAfterSeconds,
+        details: rateLimitInfo.fullError?.message || "RESOURCE_EXHAUSTED"
+      });
+    }
+
     throw new Error("Unable to translate using Gemini AI models.");
 
   } catch (error: any) {
+    const rl = parseRateLimitError(error);
+    if (rl.isRateLimit) {
+      console.error("Translation Rate Limit Error (429):", error);
+      return res.status(429).json({
+        error: "AI is temporarily busy",
+        isRateLimit: true,
+        retryAfterSeconds: rl.retryAfterSeconds,
+        details: error?.message || "RESOURCE_EXHAUSTED"
+      });
+    }
     console.error("Translation Error:", error);
     return res.status(500).json({ 
-      error: error?.message || "Gemini AI was unable to translate the poetry." 
+      error: "Gemini AI was unable to translate the poetry." 
     });
   }
 });
 
 // Ensure public/assets/card_styles directory exists and serve it statically
-const cardStylesDir = path.join(process.cwd(), "public", "assets", "card_styles");
-if (!fs.existsSync(cardStylesDir)) {
-  fs.mkdirSync(cardStylesDir, { recursive: true });
-}
-app.use("/assets/card_styles", express.static(cardStylesDir));
+const publicCardStylesDir = path.join(process.cwd(), "public", "assets", "card_styles");
+const distCardStylesDir = path.join(process.cwd(), "dist", "assets", "card_styles");
 
-// API Endpoint to scan and list all card styles (horizontal images) from the directory dynamically
+if (!fs.existsSync(publicCardStylesDir)) {
+  fs.mkdirSync(publicCardStylesDir, { recursive: true });
+}
+
+app.use("/assets/card_styles", express.static(publicCardStylesDir));
+if (fs.existsSync(distCardStylesDir)) {
+  app.use("/assets/card_styles", express.static(distCardStylesDir));
+}
+
+// API Endpoint to scan and list all card styles from the directory dynamically
 app.get("/api/card-styles", (req, res) => {
   try {
-    const files = fs.readdirSync(cardStylesDir);
-    const validExtensions = [".jpg", ".jpeg", ".png", ".webp", ".svg"];
-    const cardStyles = files
+    const publicFiles = fs.existsSync(publicCardStylesDir) ? fs.readdirSync(publicCardStylesDir) : [];
+    const distFiles = fs.existsSync(distCardStylesDir) ? fs.readdirSync(distCardStylesDir) : [];
+    const uniqueFiles = Array.from(new Set([...publicFiles, ...distFiles]));
+
+    const validExtensions = [".webp", ".png", ".jpg", ".jpeg"];
+    const cardStyles = uniqueFiles
       .filter((file) => validExtensions.includes(path.extname(file).toLowerCase()))
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
       .map((file) => `/assets/card_styles/${file}`);
+
     return res.json({ cardStyles });
   } catch (error: any) {
     console.error("Error reading card styles folder:", error);

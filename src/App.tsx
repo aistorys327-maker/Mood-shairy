@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { 
   Copy, 
   Check, 
+  Crown,
   Sparkles, 
   AlertCircle, 
   Info, 
@@ -46,6 +47,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Shayari } from "./types";
 import { PoetryCardEditorControls } from "./components/PoetryCardEditorControls";
 import { PoetryMoveResizeWrapper } from "./components/PoetryMoveResizeWrapper";
+import { RateLimitDialog } from "./components/RateLimitDialog";
 import { convertTailwindGradientToCss, solidsMap } from "./backgroundUtils";
 // @ts-ignore
 import appLogo from "./assets/images/app_icon_512_1782467463512.jpg";
@@ -457,7 +459,8 @@ function getAutoAdjustedCardSpecs(
   customTextBoxWidth?: number,
   customTextBoxHeight?: number,
   customTextWrapping?: "wrap" | "nowrap",
-  isCustomized?: boolean
+  isCustomized?: boolean,
+  hideEmoji?: boolean
 ) {
   const cleanText = text || "";
   const length = cleanText.length;
@@ -888,6 +891,16 @@ function getAutoAdjustedCardSpecs(
       targetHeightCqh = 84; // utilize maximum space on stories
     } else if (ratio === "16:9") {
       targetHeightCqh = 74; // constrain slightly to prevent overflow
+    }
+  }
+
+  if (hideEmoji) {
+    if (ratio === "9:16") {
+      verticalShiftCqh -= 5.5;
+    } else if (ratio === "16:9") {
+      verticalShiftCqh -= 3.0;
+    } else {
+      verticalShiftCqh -= 4.5;
     }
   }
 
@@ -2020,6 +2033,119 @@ function getWatermarkSettings(
   return { positionClass, colorClass };
 }
 
+function renderWatermark(
+  ratio: string,
+  text: string,
+  hasPoet: boolean,
+  customTextY: number = 0,
+  textClass: string,
+  customTextShadow?: boolean,
+  futureText?: string,
+  futurePosition?: string,
+  futureOpacity?: number,
+  futureEnabled?: boolean
+) {
+  // Determine position class based on future ready position if provided
+  let positionClass = "";
+  if (futurePosition) {
+    if (futurePosition === "top") positionClass = "top-4 left-1/2 -translate-x-1/2";
+    else if (futurePosition === "bottom") positionClass = "bottom-4 left-1/2 -translate-x-1/2";
+    else if (futurePosition === "center") positionClass = "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2";
+    else if (futurePosition === "top-right") positionClass = "top-4 right-4";
+    else if (futurePosition === "top-left") positionClass = "top-4 left-4";
+    else if (futurePosition === "bottom-right") positionClass = "bottom-4 right-4";
+    else if (futurePosition === "bottom-left") positionClass = "bottom-4 left-4";
+  } else {
+    const settings = getWatermarkSettings(ratio, text, hasPoet, customTextY, textClass);
+    positionClass = settings.positionClass;
+  }
+
+  // Future ready check, but currently we always show the watermark
+  // if (futureEnabled === false) return null;
+
+  const opacityValue = futureOpacity !== undefined ? futureOpacity : 0.85;
+  const watermarkText = futureText || "MOODY SHAYARI";
+
+  // White text with solid Black outline/stroke and rich soft shadow
+  const textShadowStyle: React.CSSProperties = {
+    color: "#ffffff",
+    textShadow: `
+      -1px -1px 0px #000000,
+       1px -1px 0px #000000,
+      -1px  1px 0px #000000,
+       1px  1px 0px #000000,
+      -1.5px 0px 0px #000000,
+       1.5px 0px 0px #000000,
+       0px -1.5px 0px #000000,
+       0px  1.5px 0px #000000,
+       0px  2px 5px rgba(0, 0, 0, 0.95),
+       0px  4px 10px rgba(0, 0, 0, 0.6)
+    `,
+    WebkitTextStroke: "0.2px rgba(0, 0, 0, 0.95)",
+  };
+
+  return (
+    <div 
+      className={`absolute ${positionClass} select-none pointer-events-none z-20 animate-fade-in flex items-center justify-center`}
+      style={{ opacity: opacityValue }}
+    >
+      <div className="flex items-center justify-center gap-1">
+        <span 
+          className="text-[8px] tracking-[0.25em] font-black leading-none uppercase select-none font-sans"
+          style={textShadowStyle}
+        >
+          {watermarkText}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export const getCategoryAndName = (stylePath: string) => {
+  const fileName = stylePath.split("/").pop() || "";
+  const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
+  const parts = nameWithoutExt.split("-");
+  const prefix = parts[0]?.toLowerCase();
+  
+  let category = "✨ Others";
+  let cleanName = parts.slice(1).join(" ");
+  
+  if (prefix === "love") {
+    category = "❤️ Love";
+  } else if (prefix === "broken") {
+    category = "💔 Broken";
+  } else if (prefix === "sad") {
+    category = "😢 Sad";
+  } else if (prefix === "friendship") {
+    category = "😊 Friendship";
+  } else if (prefix === "attitude") {
+    category = "😎 Attitude";
+  } else if (prefix === "motivation") {
+    category = "💪 Motivation";
+  } else if (prefix === "islamic") {
+    category = "🌙 Islamic";
+  } else if (prefix === "rose") {
+    category = "🌹 Rose";
+  } else if (prefix === "night") {
+    category = "🌌 Night";
+  } else if (prefix === "nature") {
+    category = "🌿 Nature";
+  } else if (prefix === "royal") {
+    category = "👑 Royal";
+  } else if (prefix === "minimal") {
+    category = "✨ Minimal";
+  } else {
+    cleanName = parts.join(" ");
+  }
+
+  cleanName = cleanName
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  return { category, cleanName };
+};
+
 export default function App() {
   // Input State
   const [userInput, setUserInput] = useState<string>(() => {
@@ -2091,6 +2217,58 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [isOfflineFallback, setIsOfflineFallback] = useState<boolean>(false);
 
+  // Rate Limit / 429 Dialog & Cooldown States
+  const [isRateLimitDialogOpen, setIsRateLimitDialogOpen] = useState<boolean>(false);
+  const [rateLimitResetSeconds, setRateLimitResetSeconds] = useState<number | null>(null);
+  const [isGenerateDisabledBy429, setIsGenerateDisabledBy429] = useState<boolean>(false);
+  const [generateDisableCountdown, setGenerateDisableCountdown] = useState<number>(0);
+
+  // Auto countdown for Generate button disable period (15-30s cooldown)
+  useEffect(() => {
+    if (isGenerateDisabledBy429 && generateDisableCountdown > 0) {
+      const timer = setInterval(() => {
+        setGenerateDisableCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setIsGenerateDisabledBy429(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [isGenerateDisabledBy429, generateDisableCountdown]);
+
+  const handleRateLimitError = (errData: any, rawResponse?: Response) => {
+    // Log the complete API error in the console for debugging
+    console.error("Gemini API Rate Limit / Quota Error (429):", errData || rawResponse);
+
+    // Never show technical error messages to normal users
+    setError(null);
+
+    // Show countdown only if API response provides a valid reset time or Retry-After value
+    let resetSecs: number | null = null;
+    if (errData && typeof errData.retryAfterSeconds === "number" && errData.retryAfterSeconds > 0) {
+      resetSecs = errData.retryAfterSeconds;
+    } else if (rawResponse) {
+      const headerVal = rawResponse.headers?.get?.("retry-after");
+      if (headerVal) {
+        const parsed = parseInt(headerVal, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          resetSecs = parsed;
+        }
+      }
+    }
+
+    setRateLimitResetSeconds(resetSecs);
+    setIsRateLimitDialogOpen(true);
+
+    // Disable Generate button for 20 seconds after 429 response to prevent repeated requests
+    setIsGenerateDisabledBy429(true);
+    setGenerateDisableCountdown(20);
+  };
+
   // Sync state changes to localStorage immediately to fulfill "Save the current UI layout"
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -2132,21 +2310,47 @@ export default function App() {
     return null;
   });
 
-  const [cardStyles, setCardStyles] = useState<string[]>([]);
+  const [loadedCardStyles, setLoadedCardStyles] = useState<string[]>([]);
+  const [isLoadingStyles, setIsLoadingStyles] = useState<boolean>(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [editedCardStyleBg, setEditedCardStyleBg] = useState<string>("");
 
   useEffect(() => {
-    const fetchCardStyles = async () => {
+    const fetchStyles = async () => {
       try {
-        const response = await fetch("/api/card-styles");
-        const data = await response.json();
+        setIsLoadingStyles(true);
+        const res = await fetch("/api/card-styles");
+        const data = await res.json();
         if (data && Array.isArray(data.cardStyles)) {
-          setCardStyles(data.cardStyles);
+          const rawStyles: string[] = data.cardStyles;
+          
+          if (rawStyles.length === 0) {
+            setLoadedCardStyles([]);
+            if (selectedCardStyleBg) {
+              setSelectedCardStyleBg(null);
+              localStorage.removeItem("mood_shayari_selected_card_style_bg");
+            }
+            setIsLoadingStyles(false);
+            return;
+          }
+
+          setLoadedCardStyles(rawStyles);
+          if (selectedCardStyleBg && !rawStyles.includes(selectedCardStyleBg)) {
+            setSelectedCardStyleBg(null);
+            localStorage.removeItem("mood_shayari_selected_card_style_bg");
+          }
+        } else {
+          setLoadedCardStyles([]);
         }
-      } catch (error) {
-        console.error("Failed to fetch card styles:", error);
+      } catch (err) {
+        console.error("Failed to load card styles:", err);
+        setLoadedCardStyles([]);
+      } finally {
+        setIsLoadingStyles(false);
       }
     };
-    fetchCardStyles();
+
+    fetchStyles();
   }, []);
   const [fontSearchQuery, setFontSearchQuery] = useState("");
   const [recentlyUsedFonts, setRecentlyUsedFonts] = useState<FontStyleId[]>(() => {
@@ -2288,13 +2492,14 @@ export default function App() {
   const [editedTextBoxWidth, setEditedTextBoxWidth] = useState<number>(96);
   const [editedTextBoxHeight, setEditedTextBoxHeight] = useState<number>(78);
   const [editedTextWrapping, setEditedTextWrapping] = useState<"wrap" | "nowrap">("wrap");
-  const [bgTab, setBgTab] = useState<"solids" | "gradients" | "trending" | "textures">("solids");
+  const [bgTab, setBgTab] = useState<"solids" | "gradients" | "trending" | "textures" | "luxury">("solids");
   const [editedBgTexture, setEditedBgTexture] = useState<string>("");
   const [editedImageFilter, setEditedImageFilter] = useState<string>("none");
   const [editedHighlightKeywords, setEditedHighlightKeywords] = useState<boolean>(false);
   const [editedHighlightColor, setEditedHighlightColor] = useState<string>("gold");
   const [customHideEmoji, setCustomHideEmoji] = useState<boolean>(false);
   const [customHideWatermark, setCustomHideWatermark] = useState<boolean>(false);
+  const [showPremiumPopup, setShowPremiumPopup] = useState<boolean>(false);
   const [editorTab, setEditorTab] = useState<"verse" | "layout" | "typography" | "decorations">("verse");
   const [expandedSection, setExpandedSection] = useState<string>("verse");
   const [activeTool, setActiveTool] = useState<string>("verse");
@@ -2392,6 +2597,7 @@ export default function App() {
     setEditedBgColor(shayari.customBgColor || "");
     setEditedBgGradient(shayari.customBgGradient || "");
     setEditedBgTexture(shayari.customBgTexture || "");
+    setEditedCardStyleBg(shayari.customCardStyleBg || "");
     setEditedTextColor(shayari.customTextColor || "text-slate-900");
     setEditedFontClass(shayari.customFontClass || activeFontConfig.class);
     setEditedTextSize(shayari.customTextSize || "text-2xl");
@@ -2416,7 +2622,13 @@ export default function App() {
       (shayari.customRatio || "1:1") as any,
       shayari.customTextSize || "text-2xl",
       shayari.sher,
-      !shayari.isAI && !!shayari.poet
+      !shayari.isAI && !!shayari.poet,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      shayari.customHideEmoji
     );
 
     let initialLineSpacing = 1.95;
@@ -2482,6 +2694,7 @@ export default function App() {
       customHideEmoji,
       customHideWatermark,
       isCustomized: true,
+      customCardStyleBg: editedCardStyleBg,
     };
 
     // Update in generatedShayaris if it exists there
@@ -2508,6 +2721,7 @@ export default function App() {
     setEditedBgColor("");
     setEditedBgGradient("");
     setEditedBgTexture("");
+    setEditedCardStyleBg("");
     setEditedTextColor("text-slate-900");
     setEditedFontClass(activeFontConfig.class);
     setEditedTextSize("text-2xl");
@@ -2540,7 +2754,13 @@ export default function App() {
       editedRatio,
       "text-4xl",
       editedSher,
-      !editingShayari.isAI && !!editingShayari.poet
+      !editingShayari.isAI && !!editingShayari.poet,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      customHideEmoji
     );
 
     let matchedSize = "text-xl";
@@ -2714,7 +2934,11 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
+        const errData = await response.json().catch(() => ({}));
+        if (response.status === 429 || errData.isRateLimit) {
+          handleRateLimitError(errData, response);
+          return;
+        }
         throw new Error(errData.error || "Failed to translate.");
       }
 
@@ -2726,7 +2950,11 @@ export default function App() {
       }
     } catch (err: any) {
       console.error("Translation failed:", err);
-      showToast(err?.message || "Failed to translate. Please try again.");
+      if (err?.message?.includes("429") || err?.message?.toLowerCase()?.includes("quota") || err?.message?.includes("RESOURCE_EXHAUSTED")) {
+        handleRateLimitError({ error: err.message });
+      } else {
+        showToast("Failed to translate. Please try again.");
+      }
     } finally {
       if (idToMarkLoading) {
         setIsTranslatingId(null);
@@ -2914,7 +3142,11 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
+        const errData = await response.json().catch(() => ({}));
+        if (response.status === 429 || errData.isRateLimit) {
+          handleRateLimitError(errData, response);
+          return;
+        }
         throw new Error(errData.error || "Failed to generate Beautiful Shayaris.");
       }
 
@@ -2935,8 +3167,12 @@ export default function App() {
         throw new Error("Invalid response format received from Backend.");
       }
     } catch (err: any) {
-      console.error(err);
-      setError(err?.message || "Failed to generate shayaris. Please try again.");
+      console.error("Generation error:", err);
+      if (err?.message?.includes("429") || err?.message?.toLowerCase()?.includes("quota") || err?.message?.includes("RESOURCE_EXHAUSTED")) {
+        handleRateLimitError({ error: err.message });
+      } else {
+        setError("Failed to generate shayaris. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -3308,27 +3544,55 @@ export default function App() {
                         )}
 
                         {activeToolbarPanel === "cardStyle" && (
-                          <div className="space-y-2 py-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                                Choose Card Background
-                              </span>
+                          <div className="space-y-3 py-2 animate-fade-in">
+                            {/* Panel Header */}
+                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                                  Premium Card Styles
+                                </span>
+                                <span className="text-[8px] bg-indigo-500/10 text-indigo-500 font-bold px-1.5 py-0.5 rounded-full">
+                                  {loadedCardStyles.length} Styles
+                                </span>
+                              </div>
                               {selectedCardStyleBg && (
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setSelectedCardStyleBg(null);
                                     localStorage.removeItem("mood_shayari_selected_card_style_bg");
-                                    showToast("Reset card background to theme original!");
+                                    showToast("Reset card background to original!");
                                   }}
-                                  className="text-[8px] font-bold text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 cursor-pointer"
+                                  className="text-[9px] font-bold text-rose-500 hover:text-rose-600 cursor-pointer flex items-center gap-1 transition-colors"
                                 >
-                                  Reset Default
+                                  <span>Reset Theme</span>
                                 </button>
                               )}
                             </div>
                             
-                            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1 pt-0.5 scroll-smooth">
+                            {/* Category Filter Tabs */}
+                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1.5 scroll-smooth select-none">
+                              {["All", "❤️ Love", "💔 Broken", "😢 Sad", "😊 Friendship", "😎 Attitude", "💪 Motivation", "🌙 Islamic", "🌹 Rose", "🌌 Night", "🌿 Nature", "👑 Royal", "✨ Minimal"].map((cat) => {
+                                const isCatSelected = selectedCategory === cat;
+                                return (
+                                  <button
+                                    key={cat}
+                                    type="button"
+                                    onClick={() => setSelectedCategory(cat)}
+                                    className={`px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap cursor-pointer transition-all border ${
+                                      isCatSelected
+                                        ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white shadow-xs"
+                                        : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-150 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850"
+                                    }`}
+                                  >
+                                    {cat}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Card Style Image Thumbnails */}
+                            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1 pt-0.5 scroll-smooth select-none min-h-[76px]">
                               {/* Default / Reset Thumbnail Option */}
                               <button
                                 type="button"
@@ -3339,24 +3603,37 @@ export default function App() {
                                 }}
                                 className={`w-14 h-14 min-w-[56px] rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 ${
                                   !selectedCardStyleBg
-                                    ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20"
-                                    : "border-slate-250 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50"
+                                    ? "border-indigo-500 bg-indigo-50/30 dark:bg-indigo-950/20"
+                                    : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50"
                                 }`}
                               >
-                                <span className="text-[12px]">🎨</span>
+                                <span className="text-[16px]">🎨</span>
                                 <span className="text-[7px] font-bold text-slate-500 dark:text-slate-400 leading-none mt-1">Default</span>
                               </button>
 
-                              {/* Card Style Image Thumbnails */}
-                              {cardStyles.length === 0 ? (
-                                <div className="text-[9px] text-slate-400 italic py-2">
-                                  Loading card styles...
+                              {isLoadingStyles ? (
+                                <div className="flex items-center gap-2 text-[10px] text-slate-400 italic py-2">
+                                  <span className="w-3.5 h-3.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></span>
+                                  Loading premium styles...
                                 </div>
-                              ) : (
-                                cardStyles.map((stylePath) => {
+                              ) : (() => {
+                                const filteredStyles = loadedCardStyles.filter((stylePath) => {
+                                  if (selectedCategory === "All") return true;
+                                  const { category } = getCategoryAndName(stylePath);
+                                  return category === selectedCategory;
+                                });
+
+                                if (filteredStyles.length === 0) {
+                                  return (
+                                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold italic py-4 px-2">
+                                      No Card Styles Available
+                                    </div>
+                                  );
+                                }
+
+                                return filteredStyles.map((stylePath) => {
                                   const isSelected = selectedCardStyleBg === stylePath;
-                                  const fileName = stylePath.split("/").pop() || "";
-                                  const cleanName = fileName.replace(/\.[^/.]+$/, "").split("-").join(" ").split("_").join(" ");
+                                  const { cleanName } = getCategoryAndName(stylePath);
                                   
                                   return (
                                     <button
@@ -3365,12 +3642,12 @@ export default function App() {
                                       onClick={() => {
                                         setSelectedCardStyleBg(stylePath);
                                         localStorage.setItem("mood_shayari_selected_card_style_bg", stylePath);
-                                        showToast(`Card style applied!`);
+                                        showToast(`${cleanName} style applied!`);
                                       }}
-                                      className={`w-14 h-14 min-w-[56px] rounded-xl border-2 overflow-hidden cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-sm relative flex items-center justify-center bg-slate-100 dark:bg-slate-950 ${
+                                      className={`w-14 h-14 min-w-[56px] rounded-xl border-2 overflow-hidden cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-xs relative flex items-center justify-center bg-slate-100 dark:bg-slate-950 ${
                                         isSelected
                                           ? "border-indigo-500 ring-2 ring-indigo-500/20"
-                                          : "border-slate-200 dark:border-slate-800"
+                                          : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
                                       }`}
                                       title={cleanName}
                                     >
@@ -3379,9 +3656,21 @@ export default function App() {
                                         alt={cleanName}
                                         className="w-full h-full object-cover"
                                         referrerPolicy="no-referrer"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display = "none";
+                                          const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
+                                          if (placeholder) placeholder.classList.remove("hidden");
+                                        }}
                                       />
+                                      <div className="hidden w-full h-full bg-slate-800 dark:bg-slate-900 flex flex-col items-center justify-center p-1 text-center select-none">
+                                        <span className="text-[12px]">🎨</span>
+                                        <span className="text-[6px] font-bold text-slate-300 truncate max-w-full">{cleanName}</span>
+                                      </div>
+                                      <div className="absolute bottom-0 inset-x-0 bg-black/60 py-0.5 text-[6px] font-black text-white text-center truncate px-0.5">
+                                        {cleanName}
+                                      </div>
                                       {isSelected && (
-                                        <div className="absolute inset-0 bg-indigo-600/20 flex items-center justify-center">
+                                        <div className="absolute inset-0 bg-indigo-600/10 flex items-center justify-center">
                                           <div className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xs">
                                             <Check className="w-2.5 h-2.5 stroke-[3]" />
                                           </div>
@@ -3389,8 +3678,8 @@ export default function App() {
                                       )}
                                     </button>
                                   );
-                                })
-                              )}
+                                });
+                              })()}
                             </div>
                           </div>
                         )}
@@ -3416,11 +3705,17 @@ export default function App() {
 
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || isGenerateDisabledBy429}
                     className={`w-full py-2.5 bg-gradient-to-r ${activeTheme.buttonGrad} text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] disabled:opacity-80 disabled:cursor-not-allowed`}
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-                    <span>{isLoading ? "Weaving Classic Poetry..." : "Weave Custom Shayari"}</span>
+                    <span>
+                      {isLoading 
+                        ? "Weaving Classic Poetry..." 
+                        : isGenerateDisabledBy429 
+                        ? `Please wait (${generateDisableCountdown}s)` 
+                        : "Weave Custom Shayari"}
+                    </span>
                   </button>
                 </form>
               </motion.div>
@@ -3474,10 +3769,11 @@ export default function App() {
                         shayari.customBgColor,
                         activeTheme.cardBg
                       );
+                      const styleBg = shayari.customCardStyleBg || selectedCardStyleBg;
                       const finalCardBgStyle = {
                         ...bgStyle,
-                        ...(selectedCardStyleBg && !shayari.customBgGradient && !shayari.customBgColor && !shayari.customBgTexture ? {
-                          backgroundImage: `url(${selectedCardStyleBg})`,
+                        ...(styleBg && !shayari.customBgGradient && !shayari.customBgColor && !shayari.customBgTexture ? {
+                          backgroundImage: `url(${styleBg})`,
                           backgroundSize: "cover",
                           backgroundPosition: "center",
                           backgroundRepeat: "no-repeat"
@@ -3500,7 +3796,8 @@ export default function App() {
                         shayari.customTextBoxWidth,
                         shayari.customTextBoxHeight,
                         shayari.customTextWrapping,
-                        shayari.isCustomized
+                        shayari.isCustomized,
+                        shayari.customHideEmoji
                       );
 
                       return (
@@ -3699,17 +3996,19 @@ export default function App() {
                             style={{ ...cardSpecs.innerWrapperStyle }}
                           >
                             {/* Centered Emoji Icon Element */}
-                            <div 
-                              className={`${cardSpecs.emojiMarginClass} flex items-center justify-center`}
-                              style={{ ...cardSpecs.emojiContainerStyle }}
-                            >
-                              <span 
-                                className={`${cardSpecs.emojiClass} filter drop-shadow-sm select-none`}
-                                style={{ ...cardSpecs.emojiStyle }}
+                            {!shayari.customHideEmoji && (
+                              <div 
+                                className={`${cardSpecs.emojiMarginClass} flex items-center justify-center`}
+                                style={{ ...cardSpecs.emojiContainerStyle }}
                               >
-                                {emojiVal}
-                              </span>
-                            </div>
+                                <span 
+                                  className={`${cardSpecs.emojiClass} filter drop-shadow-sm select-none`}
+                                  style={{ ...cardSpecs.emojiStyle }}
+                                >
+                                  {emojiVal}
+                                </span>
+                              </div>
+                            )}
 
                             {/* Urdu / Hindi Script text - Spaced naturally with our dynamic paragraph gap system */}
                             <PoetryMoveResizeWrapper
@@ -3760,27 +4059,18 @@ export default function App() {
                           </div>
 
                           {/* Subtle watermark inside poetry card */}
-                          {(() => {
-                            const { positionClass, colorClass } = getWatermarkSettings(
-                              shayari.customRatio || "1:1",
-                              shayari.sher,
-                              !shayari.isAI && !!shayari.poet,
-                              shayari.customTextY || 0,
-                              textClass
-                            );
-                            return (
-                              <div className={`absolute ${positionClass} select-none pointer-events-none z-10 animate-fade-in`} style={{ opacity: 0.12 }}>
-                                <span 
-                                  className={`text-[8px] tracking-[0.25em] uppercase font-semibold ${colorClass}`}
-                                  style={{ 
-                                    textShadow: shayari.customTextShadow ? "0 1px 2px rgba(0, 0, 0, 0.15)" : undefined 
-                                  }}
-                                >
-                                  MOODY SHAYARI
-                                </span>
-                              </div>
-                            );
-                          })()}
+                          {renderWatermark(
+                            shayari.customRatio || "1:1",
+                            shayari.sher,
+                            !shayari.isAI && !!shayari.poet,
+                            shayari.customTextY || 0,
+                            textClass,
+                            shayari.customTextShadow,
+                            shayari.customWatermarkText,
+                            shayari.customWatermarkPosition,
+                            shayari.customWatermarkOpacity,
+                            shayari.customWatermarkEnabled
+                          )}
                         </motion.div>
                       );
                     })}
@@ -3849,10 +4139,11 @@ export default function App() {
                       shayari.customBgColor,
                       activeTheme.cardBg
                     );
+                    const styleBg = shayari.customCardStyleBg || selectedCardStyleBg;
                     const finalCardBgStyle = {
                       ...bgStyle,
-                      ...(selectedCardStyleBg && !shayari.customBgGradient && !shayari.customBgColor && !shayari.customBgTexture ? {
-                        backgroundImage: `url(${selectedCardStyleBg})`,
+                      ...(styleBg && !shayari.customBgGradient && !shayari.customBgColor && !shayari.customBgTexture ? {
+                        backgroundImage: `url(${styleBg})`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                         backgroundRepeat: "no-repeat"
@@ -3875,7 +4166,8 @@ export default function App() {
                       shayari.customTextBoxWidth,
                       shayari.customTextBoxHeight,
                       shayari.customTextWrapping,
-                      shayari.isCustomized
+                      shayari.isCustomized,
+                      shayari.customHideEmoji
                     );
 
                     return (
@@ -4045,17 +4337,19 @@ export default function App() {
                           style={{ ...cardSpecs.innerWrapperStyle }}
                         >
                           {/* Centered Emoji Icon Element */}
-                          <div 
-                            className={`${cardSpecs.emojiMarginClass} flex items-center justify-center`}
-                            style={{ ...cardSpecs.emojiContainerStyle }}
-                          >
-                            <span 
-                              className={`${cardSpecs.emojiClass} filter drop-shadow-sm select-none`}
-                              style={{ ...cardSpecs.emojiStyle }}
+                          {!shayari.customHideEmoji && (
+                            <div 
+                              className={`${cardSpecs.emojiMarginClass} flex items-center justify-center`}
+                              style={{ ...cardSpecs.emojiContainerStyle }}
                             >
-                              {emojiVal}
-                            </span>
-                          </div>
+                              <span 
+                                className={`${cardSpecs.emojiClass} filter drop-shadow-sm select-none`}
+                                style={{ ...cardSpecs.emojiStyle }}
+                              >
+                                {emojiVal}
+                              </span>
+                            </div>
+                          )}
 
                            {/* Urdu / Hindi Script text - Spaced naturally with our dynamic paragraph gap system */}
                            <PoetryMoveResizeWrapper
@@ -4104,27 +4398,18 @@ export default function App() {
                         </div>
 
                         {/* Subtle watermark inside poetry card */}
-                        {(() => {
-                          const { positionClass, colorClass } = getWatermarkSettings(
-                            shayari.customRatio || "1:1",
-                            shayari.sher,
-                            !shayari.isAI && !!shayari.poet,
-                            shayari.customTextY || 0,
-                            textClass
-                          );
-                          return (
-                            <div className={`absolute ${positionClass} select-none pointer-events-none z-10 animate-fade-in`} style={{ opacity: 0.12 }}>
-                              <span 
-                                className={`text-[8px] tracking-[0.25em] uppercase font-semibold ${colorClass}`}
-                                style={{ 
-                                  textShadow: shayari.customTextShadow ? "0 1px 2px rgba(0, 0, 0, 0.15)" : undefined 
-                                }}
-                              >
-                                MOODY SHAYARI
-                              </span>
-                            </div>
-                          );
-                        })()}
+                        {renderWatermark(
+                          shayari.customRatio || "1:1",
+                          shayari.sher,
+                          !shayari.isAI && !!shayari.poet,
+                          shayari.customTextY || 0,
+                          textClass,
+                          shayari.customTextShadow,
+                          shayari.customWatermarkText,
+                          shayari.customWatermarkPosition,
+                          shayari.customWatermarkOpacity,
+                          shayari.customWatermarkEnabled
+                        )}
                       </div>
                     );
                   })}
@@ -4425,7 +4710,8 @@ export default function App() {
                           editedTextBoxWidth,
                           editedTextBoxHeight,
                           editedTextWrapping,
-                          true
+                          true,
+                          customHideEmoji
                         );
                         const ratioVal = 
                           editedRatio === "4:5" ? 0.8 :
@@ -4450,10 +4736,11 @@ export default function App() {
                           editedBgColor,
                           "bg-slate-50"
                         );
+                        const styleBg = editedCardStyleBg || selectedCardStyleBg;
                         const finalCardBgStyle = {
                           ...bgStyle,
-                          ...(selectedCardStyleBg && !editedBgGradient && !editedBgColor && !editedBgTexture ? {
-                            backgroundImage: `url(${selectedCardStyleBg})`,
+                          ...(styleBg && !editedBgGradient && !editedBgColor && !editedBgTexture ? {
+                            backgroundImage: `url(${styleBg})`,
                             backgroundSize: "cover",
                             backgroundPosition: "center",
                             backgroundRepeat: "no-repeat"
@@ -4555,17 +4842,19 @@ export default function App() {
                             style={{ ...modalSpecs.innerWrapperStyle }}
                           >
                             {/* Centered Emoji Icon Element */}
-                            <div 
-                              className={`${modalSpecs.emojiMarginClass} flex items-center justify-center`}
-                              style={{ ...modalSpecs.emojiContainerStyle }}
-                            >
-                              <span 
-                                className={`${modalSpecs.emojiClass} filter drop-shadow-sm select-none`}
-                                style={{ ...modalSpecs.emojiStyle }}
+                            {!customHideEmoji && (
+                              <div 
+                                className={`${modalSpecs.emojiMarginClass} flex items-center justify-center`}
+                                style={{ ...modalSpecs.emojiContainerStyle }}
                               >
-                                {editedEmoji}
-                              </span>
-                            </div>
+                                <span 
+                                  className={`${modalSpecs.emojiClass} filter drop-shadow-sm select-none`}
+                                  style={{ ...modalSpecs.emojiStyle }}
+                                >
+                                  {editedEmoji}
+                                </span>
+                              </div>
+                            )}
 
                             {/* Urdu / Hindi Script text - Spaced naturally with our dynamic paragraph gap system */}
                             <div 
@@ -4607,27 +4896,18 @@ export default function App() {
                           </div>
 
                           {/* Subtle watermark inside poetry card (custom editor) */}
-                          {(() => {
-                            const { positionClass, colorClass } = getWatermarkSettings(
-                              editedRatio || "1:1",
-                              editedSher,
-                              !editingShayari.isAI && !!editingShayari.poet,
-                              textPos.y || 0,
-                              editedTextColor
-                            );
-                            return (
-                              <div className={`absolute ${positionClass} select-none pointer-events-none z-10 animate-fade-in`} style={{ opacity: 0.12 }}>
-                                <span 
-                                  className={`text-[8px] tracking-[0.25em] uppercase font-semibold ${colorClass}`}
-                                  style={{ 
-                                    textShadow: editedTextShadow ? "0 1px 2px rgba(0, 0, 0, 0.15)" : undefined 
-                                  }}
-                                >
-                                  MOODY SHAYARI
-                                </span>
-                              </div>
-                            );
-                          })()}
+                          {renderWatermark(
+                            editedRatio || "1:1",
+                            editedSher,
+                            !editingShayari.isAI && !!editingShayari.poet,
+                            textPos.y || 0,
+                            editedTextColor,
+                            editedTextShadow,
+                            editingShayari.customWatermarkText,
+                            editingShayari.customWatermarkPosition,
+                            editingShayari.customWatermarkOpacity,
+                            editingShayari.customWatermarkEnabled
+                          )}
                         </div>
                       );
                     })()
@@ -4653,6 +4933,12 @@ export default function App() {
                   setEditedBgGradient={setEditedBgGradient}
                   editedBgTexture={editedBgTexture}
                   setEditedBgTexture={setEditedBgTexture}
+                  loadedCardStyles={loadedCardStyles}
+                  isLoadingStyles={isLoadingStyles}
+                  editedCardStyleBg={editedCardStyleBg}
+                  setEditedCardStyleBg={setEditedCardStyleBg}
+                  selectedCategory={selectedCategory}
+                  setSelectedCategory={setSelectedCategory}
                   editedFontClass={editedFontClass}
                   setEditedFontClass={setEditedFontClass}
                   editedIsBold={editedIsBold}
@@ -4704,6 +4990,10 @@ export default function App() {
                   gradientTextColors={gradientTextColors}
                   HIGHLIGHT_COLORS={HIGHLIGHT_COLORS}
                   FONTS={FONTS}
+                  customHideEmoji={customHideEmoji}
+                  setCustomHideEmoji={setCustomHideEmoji}
+                  customHideWatermark={false}
+                  setCustomHideWatermark={() => setShowPremiumPopup(true)}
                 />
 
 
@@ -4742,10 +5032,85 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Premium Feature Popup Modal */}
+      <AnimatePresence>
+        {showPremiumPopup && (
+          <div 
+            className="fixed inset-0 bg-black/65 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-fadeIn" 
+            id="premium-popup-overlay"
+            onClick={() => setShowPremiumPopup(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 15 }}
+              transition={{ type: "spring", damping: 25, stiffness: 350 }}
+              className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl max-w-sm w-full overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)]"
+              id="premium-popup-card"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Premium Gradient Banner */}
+              <div className="bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 h-2 w-full" />
+              
+              <div className="p-6 text-center space-y-4">
+                {/* Premium Icon and Visual */}
+                <div className="mx-auto w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center border border-amber-200 dark:border-amber-800/50 animate-bounce shadow-sm">
+                  <Crown className="w-6 h-6 text-amber-500" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <h3 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                    Premium Feature
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                    Watermark customization will be available in a future update. Upgrade to Premium after launch to remove or customize the watermark.
+                  </p>
+                </div>
+
+                {/* Buttons Stack */}
+                <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    disabled
+                    className="flex-1 py-2.5 px-4 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed border border-slate-200/40 dark:border-slate-700/30 flex items-center justify-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                    <span>Coming Soon</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPremiumPopup(false)}
+                    className="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all active:scale-[0.97] shadow-md border border-slate-900 dark:border-white"
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Subtle outer metadata tag */}
       <p className="text-[9px] font-mono text-slate-500 tracking-widest uppercase font-black my-5 text-center leading-none">
         © {new Date().getFullYear()} MOODY SHAYARI • POWERED BY ADVANCED POETIC AI
       </p>
+
+      {/* Gemini Rate Limit / Quota Exceeded (429) Modal Dialog */}
+      <RateLimitDialog
+        isOpen={isRateLimitDialogOpen}
+        onClose={() => setIsRateLimitDialogOpen(false)}
+        onTryAgain={() => {
+          setIsRateLimitDialogOpen(false);
+          if (!isGenerateDisabledBy429) {
+            const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+            handleGenerate(fakeEvent);
+          }
+        }}
+        resetSeconds={rateLimitResetSeconds}
+        isDisableCooldownActive={isGenerateDisabledBy429}
+        disableCooldownSeconds={generateDisableCountdown}
+      />
 
     </div>
   );
