@@ -2102,48 +2102,48 @@ function renderWatermark(
 }
 
 export const getCategoryAndName = (stylePath: string) => {
-  const fileName = stylePath.split("/").pop() || "";
-  const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
-  const parts = nameWithoutExt.split("-");
-  const prefix = parts[0]?.toLowerCase();
+  const parts = stylePath.split("/").filter(Boolean);
+  const fileNameWithExt = parts[parts.length - 1] || stylePath;
+  const fileName = fileNameWithExt.replace(/\.[^/.]+$/, "");
   
-  let category = "✨ Others";
-  let cleanName = parts.slice(1).join(" ");
-  
-  if (prefix === "love") {
-    category = "❤️ Love";
-  } else if (prefix === "broken") {
-    category = "💔 Broken";
-  } else if (prefix === "sad") {
-    category = "😢 Sad";
-  } else if (prefix === "friendship") {
-    category = "😊 Friendship";
-  } else if (prefix === "attitude") {
-    category = "😎 Attitude";
-  } else if (prefix === "motivation") {
-    category = "💪 Motivation";
-  } else if (prefix === "islamic") {
-    category = "🌙 Islamic";
-  } else if (prefix === "rose") {
-    category = "🌹 Rose";
-  } else if (prefix === "night") {
-    category = "🌌 Night";
-  } else if (prefix === "nature") {
-    category = "🌿 Nature";
-  } else if (prefix === "royal") {
-    category = "👑 Royal";
-  } else if (prefix === "minimal") {
-    category = "✨ Minimal";
+  let categoryKey = "";
+  if (parts.length >= 2 && parts[parts.length - 2] !== "card_styles" && parts[parts.length - 2] !== "assets") {
+    categoryKey = parts[parts.length - 2].toLowerCase().trim();
   } else {
-    cleanName = parts.join(" ");
+    const match = fileName.match(/^([a-zA-Z_]+)/);
+    categoryKey = match ? match[1].toLowerCase().trim() : "general";
   }
 
-  cleanName = cleanName
-    .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const categoryDisplayMap: Record<string, string> = {
+    love: "❤️ Love",
+    sad: "💔 Sad",
+    broken: "🥀 Broken",
+    attitude: "😎 Attitude",
+    alone: "🧑‍🦲 Alone",
+    friendship: "🤝 Friendship",
+    motivational: "🔥 Motivational",
+    islamic: "🌙 Islamic",
+    life: "🌱 Life",
+    rain: "🌧️ Rain",
+    nature: "🌿 Nature",
+    happy: "😊 Happy",
+    success: "🏆 Success",
+    trust: "🤝 Trust",
+    family: "👨‍👩‍👧 Family",
+    miss_you: "💌 Miss You",
+    romantic: "💖 Romantic",
+    pain: "🩹 Pain",
+    hope: "🕊️ Hope",
+    festival: "🎉 Festival"
+  };
 
-  return { category, cleanName };
+  const category = categoryDisplayMap[categoryKey] || (categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1));
+  const cleanName = fileName
+    .replace(/[-_]/g, " ")
+    .replace(/([a-zA-Z])(\d+)/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  return { categoryKey, category, cleanName };
 };
 
 export default function App() {
@@ -2311,9 +2311,55 @@ export default function App() {
   });
 
   const [loadedCardStyles, setLoadedCardStyles] = useState<string[]>([]);
+  const [categoryCardStyles, setCategoryCardStyles] = useState<Record<string, string[]>>({});
   const [isLoadingStyles, setIsLoadingStyles] = useState<boolean>(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [editedCardStyleBg, setEditedCardStyleBg] = useState<string>("");
+
+  const normalizeMoodToCategory = (moodStr: string): string => {
+    if (!moodStr) return "general";
+    const m = moodStr.toLowerCase().trim();
+
+    if (m.includes("love") || m.includes("pyaar") || m.includes("ishq") || m.includes("मोहब्बत")) return "love";
+    if (m.includes("romantic") || m.includes("romance")) return "romantic";
+    if (m.includes("broken") || m.includes("toot") || m.includes("heartbreak")) return "broken";
+    if (m.includes("sad") || m.includes("udaas") || m.includes("dard") || m.includes("dukh")) return "sad";
+    if (m.includes("pain") || m.includes("peeda")) return "pain";
+    if (m.includes("attitude") || m.includes("swag") || m.includes("royal") || m.includes("gangster")) return "attitude";
+    if (m.includes("alone") || m.includes("lonely") || m.includes("tanhai") || m.includes("tanha")) return "alone";
+    if (m.includes("friend") || m.includes("dosti") || m.includes("yaari")) return "friendship";
+    if (m.includes("motivat") || m.includes("inspire") || m.includes("himmat")) return "motivational";
+    if (m.includes("success") || m.includes("goal") || m.includes("kamyabi")) return "success";
+    if (m.includes("islamic") || m.includes("allah") || m.includes("dua") || m.includes("quran") || m.includes("ramadan") || m.includes("eid")) return "islamic";
+    if (m.includes("life") || m.includes("zindagi") || m.includes("jiwan")) return "life";
+    if (m.includes("rain") || m.includes("baarish") || m.includes("barsaat")) return "rain";
+    if (m.includes("nature") || m.includes("prakriti") || m.includes("flower") || m.includes("sky")) return "nature";
+    if (m.includes("happy") || m.includes("khushi") || m.includes("joy")) return "happy";
+    if (m.includes("trust") || m.includes("bharosa") || m.includes("yaqeen")) return "trust";
+    if (m.includes("family") || m.includes("parivar") || m.includes("parent") || m.includes("maa") || m.includes("baap")) return "family";
+    if (m.includes("miss") || m.includes("yaad")) return "miss_you";
+    if (m.includes("hope") || m.includes("umeed")) return "hope";
+    if (m.includes("festival") || m.includes("diwali") || m.includes("holi") || m.includes("eid")) return "festival";
+
+    return "general";
+  };
+
+  const getRandomBgForMood = (moodStr: string): string => {
+    const catKey = normalizeMoodToCategory(moodStr);
+    const catImages = categoryCardStyles[catKey];
+    
+    if (catImages && catImages.length > 0) {
+      const randomIndex = Math.floor(Math.random() * catImages.length);
+      return catImages[randomIndex];
+    }
+
+    if (loadedCardStyles && loadedCardStyles.length > 0) {
+      const randomIndex = Math.floor(Math.random() * loadedCardStyles.length);
+      return loadedCardStyles[randomIndex];
+    }
+
+    return "";
+  };
 
   useEffect(() => {
     const fetchStyles = async () => {
@@ -2324,6 +2370,10 @@ export default function App() {
         if (data && Array.isArray(data.cardStyles)) {
           const rawStyles: string[] = data.cardStyles;
           
+          if (data.categories && typeof data.categories === "object") {
+            setCategoryCardStyles(data.categories);
+          }
+
           if (rawStyles.length === 0) {
             setLoadedCardStyles([]);
             if (selectedCardStyleBg) {
@@ -3152,7 +3202,16 @@ export default function App() {
 
       const data = await response.json();
       if (data.shayaris && Array.isArray(data.shayaris)) {
-        setGeneratedShayaris(data.shayaris.slice(0, 5));
+        const mappedShayaris = data.shayaris.slice(0, 5).map((s: Shayari) => {
+          const bg = getRandomBgForMood(s.mood || trimmedInput);
+          return {
+            ...s,
+            customCardStyleBg: bg || undefined,
+            customBgGradient: undefined,
+            customBgTexture: undefined
+          };
+        });
+        setGeneratedShayaris(mappedShayaris);
         
         // Add new shayaris to the seen list
         const newTexts = data.shayaris.map((s: Shayari) => s.sher);
@@ -3572,7 +3631,7 @@ export default function App() {
                             
                             {/* Category Filter Tabs */}
                             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1.5 scroll-smooth select-none">
-                              {["All", "❤️ Love", "💔 Broken", "😢 Sad", "😊 Friendship", "😎 Attitude", "💪 Motivation", "🌙 Islamic", "🌹 Rose", "🌌 Night", "🌿 Nature", "👑 Royal", "✨ Minimal"].map((cat) => {
+                              {["All", "❤️ Love", "💔 Sad", "🥀 Broken", "😎 Attitude", "🧑‍🦲 Alone", "🤝 Friendship", "🔥 Motivational", "🌙 Islamic", "🌱 Life", "🌧️ Rain", "🌿 Nature", "😊 Happy", "🏆 Success", "🤝 Trust", "👨‍👩‍👧 Family", "💌 Miss You", "💖 Romantic", "🩹 Pain", "🕊️ Hope", "🎉 Festival"].map((cat) => {
                                 const isCatSelected = selectedCategory === cat;
                                 return (
                                   <button
@@ -3619,8 +3678,9 @@ export default function App() {
                               ) : (() => {
                                 const filteredStyles = loadedCardStyles.filter((stylePath) => {
                                   if (selectedCategory === "All") return true;
-                                  const { category } = getCategoryAndName(stylePath);
-                                  return category === selectedCategory;
+                                  const { category, categoryKey } = getCategoryAndName(stylePath);
+                                  const catClean = selectedCategory.replace(/^[^\w\s]+\s*/, "").toLowerCase().trim();
+                                  return category === selectedCategory || categoryKey === catClean || categoryKey === selectedCategory.toLowerCase();
                                 });
 
                                 if (filteredStyles.length === 0) {

@@ -352,36 +352,123 @@ Return the translated poetry text inside a JSON object with a single key 'transl
   }
 });
 
-// Ensure public/assets/card_styles directory exists and serve it statically
-const publicCardStylesDir = path.join(process.cwd(), "public", "assets", "card_styles");
-const distCardStylesDir = path.join(process.cwd(), "dist", "assets", "card_styles");
+// Ensure public/card_styles and public/assets/card_styles directories exist and serve them statically
+const publicCardStylesDir = path.join(process.cwd(), "public", "card_styles");
+const publicAssetsCardStylesDir = path.join(process.cwd(), "public", "assets", "card_styles");
+const distCardStylesDir = path.join(process.cwd(), "dist", "card_styles");
+const distAssetsCardStylesDir = path.join(process.cwd(), "dist", "assets", "card_styles");
 
-if (!fs.existsSync(publicCardStylesDir)) {
-  fs.mkdirSync(publicCardStylesDir, { recursive: true });
+const CATEGORY_SUBFOLDERS = [
+  "love", "sad", "broken", "attitude", "alone",
+  "friendship", "motivational", "islamic", "life", "rain",
+  "nature", "happy", "success", "trust", "family",
+  "miss_you", "romantic", "pain", "hope", "festival"
+];
+
+// Ensure all category directories exist in public/card_styles/
+CATEGORY_SUBFOLDERS.forEach((subDir) => {
+  const dirPath = path.join(publicCardStylesDir, subDir);
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+});
+
+if (!fs.existsSync(publicAssetsCardStylesDir)) {
+  fs.mkdirSync(publicAssetsCardStylesDir, { recursive: true });
 }
 
-app.use("/assets/card_styles", express.static(publicCardStylesDir));
+app.use("/card_styles", express.static(publicCardStylesDir));
+app.use("/assets/card_styles", express.static(publicAssetsCardStylesDir));
+
 if (fs.existsSync(distCardStylesDir)) {
-  app.use("/assets/card_styles", express.static(distCardStylesDir));
+  app.use("/card_styles", express.static(distCardStylesDir));
+}
+if (fs.existsSync(distAssetsCardStylesDir)) {
+  app.use("/assets/card_styles", express.static(distAssetsCardStylesDir));
 }
 
-// API Endpoint to scan and list all card styles from the directory dynamically
+// Helper to recursively scan card styles folders and group images by category
+function scanCardStylesDirectories() {
+  const validExtensions = [".webp", ".png", ".jpg", ".jpeg"];
+  const categoriesMap: Record<string, string[]> = {};
+  
+  // Pre-initialize standard categories
+  CATEGORY_SUBFOLDERS.forEach((cat) => {
+    categoriesMap[cat] = [];
+  });
+
+  const allStylesSet = new Set<string>();
+
+  const dirsToScan = [
+    { dir: publicCardStylesDir, urlPrefix: "/card_styles" },
+    { dir: publicAssetsCardStylesDir, urlPrefix: "/assets/card_styles" },
+    { dir: distCardStylesDir, urlPrefix: "/card_styles" },
+    { dir: distAssetsCardStylesDir, urlPrefix: "/assets/card_styles" },
+  ];
+
+  for (const { dir, urlPrefix } of dirsToScan) {
+    if (!fs.existsSync(dir)) continue;
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const categoryName = entry.name.toLowerCase().trim();
+        const subDirPath = path.join(dir, entry.name);
+        const subFiles = fs.readdirSync(subDirPath);
+
+        for (const subFile of subFiles) {
+          const ext = path.extname(subFile).toLowerCase();
+          if (validExtensions.includes(ext)) {
+            const relativeUrl = `${urlPrefix}/${entry.name}/${subFile}`;
+            if (!allStylesSet.has(relativeUrl)) {
+              allStylesSet.add(relativeUrl);
+              if (!categoriesMap[categoryName]) {
+                categoriesMap[categoryName] = [];
+              }
+              categoriesMap[categoryName].push(relativeUrl);
+            }
+          }
+        }
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (validExtensions.includes(ext)) {
+          const relativeUrl = `${urlPrefix}/${entry.name}`;
+          if (!allStylesSet.has(relativeUrl)) {
+            allStylesSet.add(relativeUrl);
+            const nameWithoutExt = path.basename(entry.name, ext);
+            const match = nameWithoutExt.match(/^([a-zA-Z_]+)/);
+            const inferredCat = match ? match[1].toLowerCase() : "general";
+            if (!categoriesMap[inferredCat]) {
+              categoriesMap[inferredCat] = [];
+            }
+            categoriesMap[inferredCat].push(relativeUrl);
+          }
+        }
+      }
+    }
+  }
+
+  // Sort all image URLs alphabetically
+  const cardStyles = Array.from(allStylesSet).sort((a, b) => 
+    a.localeCompare(b, undefined, { sensitivity: "base" })
+  );
+
+  // Sort each category array
+  for (const key in categoriesMap) {
+    categoriesMap[key].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }
+
+  return { cardStyles, categories: categoriesMap };
+}
+
+// API Endpoint to scan and list all card styles from directories dynamically
 app.get("/api/card-styles", (req, res) => {
   try {
-    const publicFiles = fs.existsSync(publicCardStylesDir) ? fs.readdirSync(publicCardStylesDir) : [];
-    const distFiles = fs.existsSync(distCardStylesDir) ? fs.readdirSync(distCardStylesDir) : [];
-    const uniqueFiles = Array.from(new Set([...publicFiles, ...distFiles]));
-
-    const validExtensions = [".webp", ".png", ".jpg", ".jpeg"];
-    const cardStyles = uniqueFiles
-      .filter((file) => validExtensions.includes(path.extname(file).toLowerCase()))
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-      .map((file) => `/assets/card_styles/${file}`);
-
-    return res.json({ cardStyles });
+    const { cardStyles, categories } = scanCardStylesDirectories();
+    return res.json({ cardStyles, categories });
   } catch (error: any) {
     console.error("Error reading card styles folder:", error);
-    return res.status(500).json({ error: "Failed to scan card styles directory.", cardStyles: [] });
+    return res.status(500).json({ error: "Failed to scan card styles directory.", cardStyles: [], categories: {} });
   }
 });
 

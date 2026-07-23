@@ -393,18 +393,18 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
 
             {/* Tab Selector */}
             <div className="flex p-0.5 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-x-auto no-scrollbar">
-              {["solids", "gradients", "trending", "textures", "luxury"].map((tab) => (
+              {["luxury", "solids"].map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setBgTab(tab as any)}
                   className={`flex-1 py-1 px-2 text-center text-[10px] font-bold rounded-lg cursor-pointer transition-all whitespace-nowrap capitalize ${
                     bgTab === tab
-                      ? "bg-white text-indigo-600 shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
+                      ? "bg-white text-indigo-600 shadow-sm dark:bg-slate-800 dark:text-indigo-400"
+                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
                   }`}
                 >
-                  {tab === "solids" ? "Solids" : tab === "gradients" ? "Gradients" : tab === "trending" ? "Trending" : tab === "textures" ? "Textures" : "Premium 👑"}
+                  {tab === "luxury" ? "Card Styles 🖼️" : "Solids 🎨"}
                 </button>
               ))}
             </div>
@@ -676,7 +676,7 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
                 <div className="space-y-3 animate-fadeIn">
                   {/* Category Filter Tabs */}
                   <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1.5 scroll-smooth select-none">
-                    {["All", "😎 Attitude", "💔 Broken", "❤️ Love", "🌹 Rose", "👑 Royal", "🌿 Nature", "✨ Minimal"].map((cat) => {
+                    {["All", "❤️ Love", "💔 Sad", "🥀 Broken", "😎 Attitude", "🧑‍🦲 Alone", "🤝 Friendship", "🔥 Motivational", "🌙 Islamic", "🌱 Life", "🌧️ Rain", "🌿 Nature", "😊 Happy", "🏆 Success", "🤝 Trust", "👨‍👩‍👧 Family", "💌 Miss You", "💖 Romantic", "🩹 Pain", "🕊️ Hope", "🎉 Festival"].map((cat) => {
                       const isCatSelected = selectedCategory === cat;
                       return (
                         <button
@@ -722,8 +722,9 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
                     ) : (() => {
                       const filteredStyles = (loadedCardStyles || []).filter((stylePath) => {
                         if (selectedCategory === "All") return true;
-                        const { category } = getCategoryAndName(stylePath);
-                        return category === selectedCategory;
+                        const { category, categoryKey } = getCategoryAndName(stylePath);
+                        const catClean = selectedCategory.replace(/^[^\w\s]+\s*/, "").toLowerCase().trim();
+                        return category === selectedCategory || categoryKey === catClean || categoryKey === selectedCategory.toLowerCase();
                       });
 
                       if (filteredStyles.length === 0) {
