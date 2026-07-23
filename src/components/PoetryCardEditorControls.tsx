@@ -5,6 +5,7 @@ import {
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Check
 } from "lucide-react";
 import { convertTailwindGradientToCss, solidsMap, resolveTailwindColor } from "../backgroundUtils";
+import { matchesCategory } from "../App";
 
 interface EditorControlsProps {
   activeTool: string;
@@ -720,12 +721,7 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
                         Loading styles...
                       </div>
                     ) : (() => {
-                      const filteredStyles = (loadedCardStyles || []).filter((stylePath) => {
-                        if (selectedCategory === "All") return true;
-                        const { category, categoryKey } = getCategoryAndName(stylePath);
-                        const catClean = selectedCategory.replace(/^[^\w\s]+\s*/, "").toLowerCase().trim();
-                        return category === selectedCategory || categoryKey === catClean || categoryKey === selectedCategory.toLowerCase();
-                      });
+                      const filteredStyles = (loadedCardStyles || []).filter((stylePath) => matchesCategory(stylePath, selectedCategory));
 
                       if (filteredStyles.length === 0) {
                         return (

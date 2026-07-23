@@ -49,6 +49,7 @@ import { PoetryCardEditorControls } from "./components/PoetryCardEditorControls"
 import { PoetryMoveResizeWrapper } from "./components/PoetryMoveResizeWrapper";
 import { RateLimitDialog } from "./components/RateLimitDialog";
 import { convertTailwindGradientToCss, solidsMap } from "./backgroundUtils";
+import { DEFAULT_CARD_STYLES, DEFAULT_CATEGORY_CARD_STYLES } from "./data/defaultCardStyles";
 // @ts-ignore
 import appLogo from "./assets/images/app_icon_512_1782467463512.jpg";
 
@@ -2146,7 +2147,54 @@ export const getCategoryAndName = (stylePath: string) => {
   return { categoryKey, category, cleanName };
 };
 
+export const matchesCategory = (stylePath: string, selectedCategory: string): boolean => {
+  if (!selectedCategory || selectedCategory === "All") return true;
+
+  const { category, categoryKey } = getCategoryAndName(stylePath);
+  const catClean = selectedCategory.replace(/^[^\w\s]+\s*/, "").toLowerCase().trim();
+
+  if (category === selectedCategory || categoryKey === catClean || categoryKey === selectedCategory.toLowerCase()) {
+    return true;
+  }
+
+  const sadGroup = ["sad", "broken", "alone", "pain"];
+  if (sadGroup.includes(catClean) && sadGroup.includes(categoryKey)) {
+    return true;
+  }
+
+  const loveGroup = ["love", "romantic", "miss_you", "family", "happy", "trust", "friendship"];
+  if (loveGroup.includes(catClean) && (categoryKey === "love" || categoryKey === "nature")) {
+    return true;
+  }
+
+  const attitudeGroup = ["attitude", "motivational", "success"];
+  if (attitudeGroup.includes(catClean) && categoryKey === "attitude") {
+    return true;
+  }
+
+  const natureGroup = ["nature", "rain", "life", "hope", "islamic", "festival"];
+  if (natureGroup.includes(catClean) && (categoryKey === "nature" || categoryKey === "love" || categoryKey === "attitude")) {
+    return true;
+  }
+
+  return false;
+};
+
 export default function App() {
+  const APK_DOWNLOAD_URL = "https://github.com/aistorys327-maker/My-App-data-/releases/download/v1.0/Moody_Shairy_v1.0.apk";
+
+  const handleDownloadApk = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    try {
+      const opened = window.open(APK_DOWNLOAD_URL, "_blank", "noopener,noreferrer");
+      if (!opened || opened.closed || typeof opened.closed === "undefined") {
+        window.location.href = APK_DOWNLOAD_URL;
+      }
+    } catch (err) {
+      window.location.href = APK_DOWNLOAD_URL;
+    }
+  };
+
   // Input State
   const [userInput, setUserInput] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -2310,9 +2358,9 @@ export default function App() {
     return null;
   });
 
-  const [loadedCardStyles, setLoadedCardStyles] = useState<string[]>([]);
-  const [categoryCardStyles, setCategoryCardStyles] = useState<Record<string, string[]>>({});
-  const [isLoadingStyles, setIsLoadingStyles] = useState<boolean>(true);
+  const [loadedCardStyles, setLoadedCardStyles] = useState<string[]>(DEFAULT_CARD_STYLES);
+  const [categoryCardStyles, setCategoryCardStyles] = useState<Record<string, string[]>>(DEFAULT_CATEGORY_CARD_STYLES);
+  const [isLoadingStyles, setIsLoadingStyles] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [editedCardStyleBg, setEditedCardStyleBg] = useState<string>("");
 
@@ -2345,6 +2393,10 @@ export default function App() {
   };
 
   const getRandomBgForMood = (moodStr: string): string => {
+    if (selectedCardStyleBg) {
+      return selectedCardStyleBg;
+    }
+
     const catKey = normalizeMoodToCategory(moodStr);
     const catImages = categoryCardStyles[catKey];
     
@@ -2364,37 +2416,30 @@ export default function App() {
   useEffect(() => {
     const fetchStyles = async () => {
       try {
-        setIsLoadingStyles(true);
         const res = await fetch("/api/card-styles");
+        if (!res.ok) return;
         const data = await res.json();
-        if (data && Array.isArray(data.cardStyles)) {
+        if (data && Array.isArray(data.cardStyles) && data.cardStyles.length > 0) {
           const rawStyles: string[] = data.cardStyles;
-          
+          const combinedStyles = Array.from(new Set([...rawStyles, ...DEFAULT_CARD_STYLES])).sort((a, b) =>
+            a.localeCompare(b, undefined, { sensitivity: "base" })
+          );
+          setLoadedCardStyles(combinedStyles);
+
           if (data.categories && typeof data.categories === "object") {
-            setCategoryCardStyles(data.categories);
-          }
-
-          if (rawStyles.length === 0) {
-            setLoadedCardStyles([]);
-            if (selectedCardStyleBg) {
-              setSelectedCardStyleBg(null);
-              localStorage.removeItem("mood_shayari_selected_card_style_bg");
+            const mergedCategories: Record<string, string[]> = { ...DEFAULT_CATEGORY_CARD_STYLES };
+            for (const catKey in data.categories) {
+              const apiList = data.categories[catKey] || [];
+              const defaultList = mergedCategories[catKey] || [];
+              mergedCategories[catKey] = Array.from(new Set([...apiList, ...defaultList])).sort((a, b) =>
+                a.localeCompare(b, undefined, { sensitivity: "base" })
+              );
             }
-            setIsLoadingStyles(false);
-            return;
+            setCategoryCardStyles(mergedCategories);
           }
-
-          setLoadedCardStyles(rawStyles);
-          if (selectedCardStyleBg && !rawStyles.includes(selectedCardStyleBg)) {
-            setSelectedCardStyleBg(null);
-            localStorage.removeItem("mood_shayari_selected_card_style_bg");
-          }
-        } else {
-          setLoadedCardStyles([]);
         }
       } catch (err) {
-        console.error("Failed to load card styles:", err);
-        setLoadedCardStyles([]);
+        console.warn("Using default static card styles:", err);
       } finally {
         setIsLoadingStyles(false);
       }
@@ -2647,7 +2692,7 @@ export default function App() {
     setEditedBgColor(shayari.customBgColor || "");
     setEditedBgGradient(shayari.customBgGradient || "");
     setEditedBgTexture(shayari.customBgTexture || "");
-    setEditedCardStyleBg(shayari.customCardStyleBg || "");
+    setEditedCardStyleBg(shayari.customCardStyleBg || selectedCardStyleBg || "");
     setEditedTextColor(shayari.customTextColor || "text-slate-900");
     setEditedFontClass(shayari.customFontClass || activeFontConfig.class);
     setEditedTextSize(shayari.customTextSize || "text-2xl");
@@ -3311,9 +3356,9 @@ export default function App() {
       <div className="flex-1 flex flex-col min-h-0 relative select-none">
         
         {/* App Title & Header Bar */}
-        <header className={`px-5 py-3 shrink-0 flex items-center justify-between border-b ${activeTheme.navBorder} ${activeTheme.headerBg} backdrop-blur-md sticky top-0 z-30 transition-all duration-300`}>
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.12)]">
+        <header className={`px-4 sm:px-5 py-2.5 shrink-0 flex items-center justify-between border-b ${activeTheme.navBorder} ${activeTheme.headerBg} backdrop-blur-md sticky top-0 z-30 transition-all duration-300`}>
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-[52px] h-[52px] rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-xs border border-black/5 dark:border-white/10">
               <img 
                 src={appLogo} 
                 alt="Moody Shayari Logo" 
@@ -3321,27 +3366,27 @@ export default function App() {
                 referrerPolicy="no-referrer" 
               />
             </div>
-            <div className="flex flex-col">
-              <h1 className={`text-base font-extrabold ${activeTheme.textColor} leading-none tracking-tight font-sans`}>
+            <div className="flex flex-col justify-center">
+              <h1 className={`text-sm sm:text-base font-extrabold ${activeTheme.textColor} leading-tight tracking-tight font-sans`}>
                 Moody Shayari
               </h1>
-              <span className="text-[10px] tracking-wider text-slate-400 font-medium mt-1.5 leading-none">
+              <span className="text-[9px] sm:text-[10px] tracking-wider text-slate-400 dark:text-slate-500 font-medium leading-tight mt-0.5">
                 Android Version 2.0
               </span>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button 
               onClick={() => handleThemeChange(THEMES[(THEMES.findIndex(t => t.id === currentThemeId) + 1) % THEMES.length].id)}
               className={`p-1.5 rounded-full hover:bg-white/45 active:scale-95 transition-all ${activeTheme.iconColor} cursor-pointer`}
               title="Rotate Palette"
             >
-              <Palette className="w-4 h-4" />
+              <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
-            <div className={`flex items-center gap-1.5 bg-white/50 border ${activeTheme.cardBorder} px-2 py-0.5 rounded-full`}>
+            <div className={`flex items-center gap-1 bg-white/60 dark:bg-slate-800/60 border ${activeTheme.cardBorder} px-2 py-0.5 rounded-full shadow-2xs`}>
               <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[8px] font-mono font-bold uppercase text-slate-500">PRO AI</span>
+              <span className="text-[8px] font-mono font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider">PRO AI</span>
             </div>
           </div>
         </header>
@@ -3352,90 +3397,120 @@ export default function App() {
           {activeTab === "generator" && (
             <div className="space-y-4">
               
+              {/* Single Full-Width Download APK Button */}
+              <motion.a
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                href={APK_DOWNLOAD_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleDownloadApk}
+                className={`w-full py-2.5 bg-gradient-to-r ${activeTheme.buttonGrad} text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all hover:shadow-md active:scale-[0.98] cursor-pointer group select-none`}
+              >
+                <Download className="w-4 h-4 transition-transform group-hover:translate-y-0.5" />
+                <span>Download APK</span>
+              </motion.a>
+
               {/* Generation card */}
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`border rounded-[28px] p-4 shadow-[0_15px_40px_rgba(0,0,0,0.02)] space-y-3.5 ${activeTheme.formCardBg} ${activeTheme.cardBorder}`}
+                className={`border rounded-[24px] p-5 sm:p-6 shadow-[0_15px_40px_rgba(0,0,0,0.03)] space-y-4.5 ${activeTheme.formCardBg} ${activeTheme.cardBorder}`}
               >
                 <div>
-                  <h2 className={`text-sm font-extrabold ${activeTheme.textColor} tracking-tight flex items-center gap-1.5`}>
-                    <span>How is your heart feeling?</span>
+                  <h2 className={`text-base sm:text-lg font-extrabold ${activeTheme.textColor} tracking-tight flex items-center gap-2`}>
+                    <span>What's on your mind?</span>
                   </h2>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-normal">
-                    Let our advanced AI weave beautiful custom Urdu/Hindi poetry matching your emotion perfectly.
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                    Describe your mood and let AI create beautiful personalized Shayari.
                   </p>
                 </div>
 
-                <form onSubmit={handleGenerate} className="space-y-3">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      id="mood_input"
-                      value={userInput}
-                      onChange={(e) => {
-                        setUserInput(e.target.value);
-                        if (e.target.value.trim()) setError(null);
-                      }}
-                      placeholder="e.g. rain love, melancholic alone, broken trust, motivation..."
-                      maxLength={150}
-                      className={`w-full bg-white/70 dark:bg-slate-950/40 border rounded-xl pl-4 pr-10 py-2 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none transition-all ${activeTheme.inputFocus} ${activeTheme.cardBorder}`}
-                    />
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm select-none pointer-events-none">✍️</span>
+                <form onSubmit={handleGenerate} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <div className="relative">
+                      <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-rose-500 dark:text-rose-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        id="mood_input"
+                        value={userInput}
+                        onChange={(e) => {
+                          setUserInput(e.target.value);
+                          if (e.target.value.trim()) setError(null);
+                        }}
+                        placeholder="e.g. rain love, melancholic alone, broken trust, motivation..."
+                        maxLength={150}
+                        className={`w-full h-[56px] bg-white dark:bg-slate-950/60 border rounded-2xl pl-12 pr-11 text-xs sm:text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-400/40 focus:border-rose-400 transition-all duration-250 shadow-2xs ${activeTheme.cardBorder}`}
+                      />
+                      {userInput.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setUserInput("")}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all duration-200 cursor-pointer"
+                          title="Clear text"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500 font-medium pl-1">
+                      Example: Love, Rain, Sad, Alone, Motivation...
+                    </p>
                   </div>
 
                   {/* Premium Compact Customization Toolbar */}
-                  <div className={`sticky -top-4 z-20 -mx-4 px-4 py-2 border-b border-slate-200/20 dark:border-slate-800/20 backdrop-blur-md transition-all duration-300 ${activeTheme.formCardBg}`}>
-                    <div className="flex items-center justify-between gap-1.5 py-1">
+                  <div className="pt-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <button
                         type="button"
                         onClick={() => setActiveToolbarPanel(activeToolbarPanel === "textStyle" ? null : "textStyle")}
-                        className={`flex-1 py-1.5 px-1 rounded-xl border text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                        className={`h-10 sm:h-11 px-3 rounded-xl sm:rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all duration-250 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
                           activeToolbarPanel === "textStyle"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs`
-                            : `bg-white/80 dark:bg-slate-900/80 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800`
+                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs scale-[1.02]`
+                            : `bg-white dark:bg-slate-900 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-800 shadow-2xs`
                         }`}
                       >
-                        <span>🎨</span>
+                        <span className="text-sm">🎨</span>
                         <span>Text Style</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setActiveToolbarPanel(activeToolbarPanel === "language" ? null : "language")}
-                        className={`flex-1 py-1.5 px-1 rounded-xl border text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                        className={`h-10 sm:h-11 px-3 rounded-xl sm:rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all duration-250 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
                           activeToolbarPanel === "language"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs`
-                            : `bg-white/80 dark:bg-slate-900/80 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800`
+                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs scale-[1.02]`
+                            : `bg-white dark:bg-slate-900 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-800 shadow-2xs`
                         }`}
                       >
-                        <span>🌐</span>
+                        <span className="text-sm">🌐</span>
                         <span>Language</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setActiveToolbarPanel(activeToolbarPanel === "weight" ? null : "weight")}
-                        className={`flex-1 py-1.5 px-1 rounded-xl border text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                        className={`h-10 sm:h-11 px-3 rounded-xl sm:rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all duration-250 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
                           activeToolbarPanel === "weight"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs`
-                            : `bg-white/80 dark:bg-slate-900/80 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800`
+                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs scale-[1.02]`
+                            : `bg-white dark:bg-slate-900 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-800 shadow-2xs`
                         }`}
                       >
-                        <span>🔤</span>
+                        <span className="text-sm">🔤</span>
                         <span>Weight</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setActiveToolbarPanel(activeToolbarPanel === "cardStyle" ? null : "cardStyle")}
-                        className={`flex-1 py-1.5 px-1 rounded-xl border text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                        className={`h-10 sm:h-11 px-3 rounded-xl sm:rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all duration-250 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
                           activeToolbarPanel === "cardStyle"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs`
-                            : `bg-white/80 dark:bg-slate-900/80 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800`
+                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs scale-[1.02]`
+                            : `bg-white dark:bg-slate-900 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-800 shadow-2xs`
                         }`}
                       >
-                        <span>🖼️</span>
+                        <span className="text-sm">🖼️</span>
                         <span>Card Style</span>
                       </button>
                     </div>
@@ -3676,12 +3751,7 @@ export default function App() {
                                   Loading premium styles...
                                 </div>
                               ) : (() => {
-                                const filteredStyles = loadedCardStyles.filter((stylePath) => {
-                                  if (selectedCategory === "All") return true;
-                                  const { category, categoryKey } = getCategoryAndName(stylePath);
-                                  const catClean = selectedCategory.replace(/^[^\w\s]+\s*/, "").toLowerCase().trim();
-                                  return category === selectedCategory || categoryKey === catClean || categoryKey === selectedCategory.toLowerCase();
-                                });
+                                const filteredStyles = loadedCardStyles.filter((stylePath) => matchesCategory(stylePath, selectedCategory));
 
                                 if (filteredStyles.length === 0) {
                                   return (
@@ -3766,9 +3836,9 @@ export default function App() {
                   <button
                     type="submit"
                     disabled={isLoading || isGenerateDisabledBy429}
-                    className={`w-full py-2.5 bg-gradient-to-r ${activeTheme.buttonGrad} text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] disabled:opacity-80 disabled:cursor-not-allowed`}
+                    className={`w-full h-[56px] bg-gradient-to-r ${activeTheme.buttonGrad} text-white text-sm sm:text-base font-extrabold rounded-2xl flex items-center justify-center gap-2.5 shadow-md hover:shadow-lg transition-all duration-250 active:scale-[0.98] disabled:opacity-80 disabled:cursor-not-allowed cursor-pointer`}
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                    <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
                     <span>
                       {isLoading 
                         ? "Weaving Classic Poetry..." 
@@ -3830,10 +3900,12 @@ export default function App() {
                         activeTheme.cardBg
                       );
                       const styleBg = shayari.customCardStyleBg || selectedCardStyleBg;
+                      const hasExplicitGradientOrTexture = shayari.isCustomized && (!!shayari.customBgGradient || !!shayari.customBgTexture);
+                      const effectiveStyleBg = hasExplicitGradientOrTexture ? undefined : styleBg;
                       const finalCardBgStyle = {
                         ...bgStyle,
-                        ...(styleBg && !shayari.customBgGradient && !shayari.customBgColor && !shayari.customBgTexture ? {
-                          backgroundImage: `url(${styleBg})`,
+                        ...(effectiveStyleBg ? {
+                          backgroundImage: `url("${effectiveStyleBg}")`,
                           backgroundSize: "cover",
                           backgroundPosition: "center",
                           backgroundRepeat: "no-repeat"
@@ -4200,10 +4272,12 @@ export default function App() {
                       activeTheme.cardBg
                     );
                     const styleBg = shayari.customCardStyleBg || selectedCardStyleBg;
+                    const hasExplicitGradientOrTexture = shayari.isCustomized && (!!shayari.customBgGradient || !!shayari.customBgTexture);
+                    const effectiveStyleBg = hasExplicitGradientOrTexture ? undefined : styleBg;
                     const finalCardBgStyle = {
                       ...bgStyle,
-                      ...(styleBg && !shayari.customBgGradient && !shayari.customBgColor && !shayari.customBgTexture ? {
-                        backgroundImage: `url(${styleBg})`,
+                      ...(effectiveStyleBg ? {
+                        backgroundImage: `url("${effectiveStyleBg}")`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                         backgroundRepeat: "no-repeat"
@@ -4797,10 +4871,12 @@ export default function App() {
                           "bg-slate-50"
                         );
                         const styleBg = editedCardStyleBg || selectedCardStyleBg;
+                        const hasExplicitEditorGradientOrTexture = !!editedBgGradient || !!editedBgTexture;
+                        const effectiveStyleBg = hasExplicitEditorGradientOrTexture ? undefined : styleBg;
                         const finalCardBgStyle = {
                           ...bgStyle,
-                          ...(styleBg && !editedBgGradient && !editedBgColor && !editedBgTexture ? {
-                            backgroundImage: `url(${styleBg})`,
+                          ...(effectiveStyleBg ? {
+                            backgroundImage: `url("${effectiveStyleBg}")`,
                             backgroundSize: "cover",
                             backgroundPosition: "center",
                             backgroundRepeat: "no-repeat"
