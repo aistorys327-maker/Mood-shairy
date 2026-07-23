@@ -87,48 +87,48 @@ interface EditorControlsProps {
 }
 
 const getCategoryAndName = (stylePath: string) => {
-  const fileName = stylePath.split("/").pop() || "";
-  const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
-  const parts = nameWithoutExt.split("-");
-  const prefix = parts[0]?.toLowerCase();
+  const parts = stylePath.split("/").filter(Boolean);
+  const fileNameWithExt = parts[parts.length - 1] || stylePath;
+  const fileName = fileNameWithExt.replace(/\.[^/.]+$/, "");
   
-  let category = "✨ Others";
-  let cleanName = parts.slice(1).join(" ");
-  
-  if (prefix === "love") {
-    category = "❤️ Love";
-  } else if (prefix === "broken") {
-    category = "💔 Broken";
-  } else if (prefix === "sad") {
-    category = "😢 Sad";
-  } else if (prefix === "friendship") {
-    category = "😊 Friendship";
-  } else if (prefix === "attitude") {
-    category = "😎 Attitude";
-  } else if (prefix === "motivation") {
-    category = "💪 Motivation";
-  } else if (prefix === "islamic") {
-    category = "🌙 Islamic";
-  } else if (prefix === "rose") {
-    category = "🌹 Rose";
-  } else if (prefix === "night") {
-    category = "🌌 Night";
-  } else if (prefix === "nature") {
-    category = "🌿 Nature";
-  } else if (prefix === "royal") {
-    category = "👑 Royal";
-  } else if (prefix === "minimal") {
-    category = "✨ Minimal";
+  let categoryKey = "";
+  if (parts.length >= 2 && parts[parts.length - 2] !== "card_styles" && parts[parts.length - 2] !== "assets") {
+    categoryKey = parts[parts.length - 2].toLowerCase().trim();
   } else {
-    cleanName = parts.join(" ");
+    const match = fileName.match(/^([a-zA-Z_]+)/);
+    categoryKey = match ? match[1].toLowerCase().trim() : "general";
   }
 
-  cleanName = cleanName
-    .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const categoryDisplayMap: Record<string, string> = {
+    love: "❤️ Love",
+    sad: "💔 Sad",
+    broken: "🥀 Broken",
+    attitude: "😎 Attitude",
+    alone: "🧑‍🦲 Alone",
+    friendship: "🤝 Friendship",
+    motivational: "🔥 Motivational",
+    islamic: "🌙 Islamic",
+    life: "🌱 Life",
+    rain: "🌧️ Rain",
+    nature: "🌿 Nature",
+    happy: "😊 Happy",
+    success: "🏆 Success",
+    trust: "🤝 Trust",
+    family: "👨‍👩‍👧 Family",
+    miss_you: "💌 Miss You",
+    romantic: "💖 Romantic",
+    pain: "🩹 Pain",
+    hope: "🕊️ Hope",
+    festival: "🎉 Festival"
+  };
 
-  return { category, cleanName };
+  const category = categoryDisplayMap[categoryKey] || (categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1));
+  const cleanName = fileName
+    .replace(/[-_]/g, " ")
+    .replace(/([a-zA-Z])(\d+)/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  return { categoryKey, category, cleanName };
 };
 
 export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
