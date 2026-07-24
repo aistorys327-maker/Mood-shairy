@@ -136,40 +136,40 @@ const THEMES: ThemeConfig[] = [
   {
     id: "pink",
     name: "Rose Petal",
-    colorClass: "bg-pink-600",
-    bgGrad: "from-pink-50/70 via-slate-50 to-pink-100/40",
+    colorClass: "bg-[#FF2E88]",
+    bgGrad: "from-[#FFF8FC] via-white to-[#FFF1F8]",
     headerBorder: "border-pink-200/40",
     iconBg: "bg-pink-50/80 border-pink-100/60",
-    iconColor: "text-pink-600",
-    titleSpan: "text-pink-700",
-    cardShadow: "shadow-[0_24px_60px_-15px_rgba(219,39,119,0.12)]",
-    cardBorderHover: "hover:border-pink-350/80 hover:shadow-md",
-    inputFocus: "focus:border-pink-500 focus:ring-4 focus:ring-pink-500/10 focus:bg-white",
-    buttonGrad: "from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700",
-    spinnerBorder: "border-pink-600/20 border-t-pink-600",
-    spinnerIcon: "text-pink-600",
-    tagAi: "text-pink-700 bg-pink-50/70 border-pink-100/80",
+    iconColor: "text-[#FF2E88]",
+    titleSpan: "text-[#FF2E88]",
+    cardShadow: "shadow-[0_12px_32px_rgba(255,46,136,0.12)]",
+    cardBorderHover: "hover:border-[#FF2E88]/60 hover:shadow-md",
+    inputFocus: "focus:border-[#FF2E88] focus:ring-4 focus:ring-[#FF2E88]/15 focus:bg-white",
+    buttonGrad: "from-[#FF2E88] to-[#7B2FF7] hover:from-[#e00d6c] hover:to-[#6924d6]",
+    spinnerBorder: "border-[#FF2E88]/20 border-t-[#FF2E88]",
+    spinnerIcon: "text-[#FF2E88]",
+    tagAi: "text-[#FF2E88] bg-pink-50/80 border-pink-100/80",
     tagClassic: "text-slate-700 bg-slate-50 border-slate-200/60",
-    separatorDot: "text-pink-600",
+    separatorDot: "text-[#FF2E88]",
     separatorLine: "bg-pink-900/10",
     poetTag: "text-pink-800 bg-pink-50/60 border-pink-100/50",
     poetBold: "text-pink-900",
     cardDecoration: "text-pink-50/40 group-hover:text-pink-100/45",
-    toastBg: "bg-pink-950/95 border-pink-900",
-    accentGlow: "bg-pink-500/10",
+    toastBg: "bg-slate-950/95 border-[#FF2E88]/40",
+    accentGlow: "bg-[#FF2E88]/10",
     headerBg: "bg-pink-50/85",
     navBg: "bg-pink-50/95",
     navBorder: "border-pink-200/40",
-    activeTabBg: "bg-pink-100/80 text-pink-700",
-    cardBg: "bg-pink-50/50",
-    cardBorder: "border-pink-200/60",
-    formCardBg: "bg-pink-50/65",
-    subCardBg: "bg-pink-100/30",
-    borderAccent: "border-pink-500",
-    textColor: "text-pink-950",
-    tagMood: "text-pink-700 bg-pink-50/80 border-pink-100/80",
+    activeTabBg: "bg-pink-100/80 text-[#FF2E88]",
+    cardBg: "bg-white/80 backdrop-blur-md",
+    cardBorder: "border-pink-100/80 dark:border-slate-800/80",
+    formCardBg: "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md",
+    subCardBg: "bg-pink-50/40",
+    borderAccent: "border-[#FF2E88]",
+    textColor: "text-slate-900 dark:text-slate-100",
+    tagMood: "text-[#FF2E88] bg-pink-50/80 border-pink-100/80",
     outerBg: "bg-[#1a0810]",
-    glowColors: ["bg-pink-500/10", "bg-rose-500/10"],
+    glowColors: ["bg-[#FF2E88]/10", "bg-[#7B2FF7]/10"],
     chassisBorder: "border-pink-950"
   },
   {
@@ -2185,6 +2185,7 @@ export default function App() {
 
   const handleDownloadApk = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
+    triggerHapticFeedback();
     try {
       const opened = window.open(APK_DOWNLOAD_URL, "_blank", "noopener,noreferrer");
       if (!opened || opened.closed || typeof opened.closed === "undefined") {
@@ -2491,6 +2492,16 @@ export default function App() {
     }
   }, [themeMode]);
 
+  const triggerHapticFeedback = () => {
+    if (typeof window !== "undefined" && window.navigator && typeof window.navigator.vibrate === "function") {
+      try {
+        window.navigator.vibrate(10);
+      } catch {
+        // ignore vibration block
+      }
+    }
+  };
+
   const [currentThemeId, setCurrentThemeId] = useState<"purple" | "pink" | "blue" | "green" | "orange">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("mood_shayari_theme");
@@ -2498,7 +2509,7 @@ export default function App() {
         return saved as "purple" | "pink" | "blue" | "green" | "orange";
       }
     }
-    return "purple";
+    return "pink";
   });
 
   const [selectedFont, setSelectedFont] = useState<FontStyleId>(() => {
@@ -3356,46 +3367,50 @@ export default function App() {
       <div className="flex-1 flex flex-col min-h-0 relative select-none">
         
         {/* App Title & Header Bar */}
-        <header className={`px-4 sm:px-5 py-2.5 shrink-0 flex items-center justify-between border-b ${activeTheme.navBorder} ${activeTheme.headerBg} backdrop-blur-md sticky top-0 z-30 transition-all duration-300`}>
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="w-[52px] h-[52px] rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-xs border border-black/5 dark:border-white/10">
+        <header className="px-3.5 sm:px-4 py-1.5 shrink-0 flex items-center justify-between border-b border-white/15 bg-gradient-to-r from-[#3D0A91] via-[#7B2FF7] to-[#FF2E88] backdrop-blur-md shadow-md sticky top-0 z-30 transition-all duration-300">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="w-[38px] h-[38px] sm:w-[42px] sm:h-[42px] rounded-xl bg-white/10 backdrop-blur-md p-0.5 border border-white/25 shrink-0 flex items-center justify-center shadow-[0_0_12px_rgba(255,46,136,0.4)]">
               <img 
                 src={appLogo} 
                 alt="Moody Shayari Logo" 
-                className="w-full h-full object-contain" 
+                className="w-full h-full object-cover rounded-lg shadow-xs" 
                 referrerPolicy="no-referrer" 
               />
             </div>
             <div className="flex flex-col justify-center">
-              <h1 className={`text-sm sm:text-base font-extrabold ${activeTheme.textColor} leading-tight tracking-tight font-sans`}>
-                Moody Shayari
+              <h1 className="text-sm sm:text-base font-black tracking-tight font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)] flex items-center gap-1 leading-tight">
+                <span className="text-white">Moody</span>
+                <span className="text-[#FF2E88] font-black drop-shadow-[0_0_8px_rgba(255,46,136,0.6)]">Shayari</span>
               </h1>
-              <span className="text-[9px] sm:text-[10px] tracking-wider text-slate-400 dark:text-slate-500 font-medium leading-tight mt-0.5">
+              <span className="text-[8px] sm:text-[9px] tracking-wider text-white/70 font-medium leading-none">
                 Android Version 2.0
               </span>
             </div>
           </div>
           
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5">
             <button 
-              onClick={() => handleThemeChange(THEMES[(THEMES.findIndex(t => t.id === currentThemeId) + 1) % THEMES.length].id)}
-              className={`p-1.5 rounded-full hover:bg-white/45 active:scale-95 transition-all ${activeTheme.iconColor} cursor-pointer`}
+              onClick={() => {
+                triggerHapticFeedback();
+                handleThemeChange(THEMES[(THEMES.findIndex(t => t.id === currentThemeId) + 1) % THEMES.length].id);
+              }}
+              className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 transition-all text-white border border-white/20 cursor-pointer shadow-xs"
               title="Rotate Palette"
             >
-              <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <Palette className="w-3.5 h-3.5" />
             </button>
-            <div className={`flex items-center gap-1 bg-white/60 dark:bg-slate-800/60 border ${activeTheme.cardBorder} px-2 py-0.5 rounded-full shadow-2xs`}>
-              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[8px] font-mono font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider">PRO AI</span>
+            <div className="flex items-center gap-1 bg-white/20 backdrop-blur-md border border-white/30 px-2 py-0.5 rounded-full shadow-xs">
+              <Crown className="w-3 h-3 text-amber-300 fill-amber-300 drop-shadow-[0_0_4px_rgba(252,211,77,0.6)]" />
+              <span className="text-[8px] font-mono font-black uppercase text-white tracking-wider">PRO AI</span>
             </div>
           </div>
         </header>
 
         {/* Dynamic Inner Tab View */}
-        <div className="flex-1 overflow-y-auto no-scrollbar px-4 pt-4 pb-[calc(96px+env(safe-area-inset-bottom,0px))] space-y-4">
+        <div className="flex-1 overflow-y-auto no-scrollbar px-3 sm:px-4 pt-2.5 pb-[calc(76px+env(safe-area-inset-bottom,0px))] space-y-2.5">
           
           {activeTab === "generator" && (
-            <div className="space-y-4">
+            <div className="space-y-2.5">
               
               {/* Single Full-Width Download APK Button */}
               <motion.a
@@ -3406,9 +3421,9 @@ export default function App() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleDownloadApk}
-                className={`w-full py-2.5 bg-gradient-to-r ${activeTheme.buttonGrad} text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all hover:shadow-md active:scale-[0.98] cursor-pointer group select-none`}
+                className="w-full h-[48px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-slate-800 dark:text-slate-100 border border-pink-100 dark:border-slate-800 text-xs sm:text-sm font-bold rounded-[16px] flex items-center justify-center gap-2 shadow-xs hover:shadow-md hover:border-[#FF2E88]/40 active:scale-[0.98] transition-all duration-200 cursor-pointer group select-none"
               >
-                <Download className="w-4 h-4 transition-transform group-hover:translate-y-0.5" />
+                <Download className="w-4 h-4 text-[#FF2E88] transition-transform group-hover:translate-y-0.5" />
                 <span>Download APK</span>
               </motion.a>
 
@@ -3416,21 +3431,21 @@ export default function App() {
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`border rounded-[24px] p-5 sm:p-6 shadow-[0_15px_40px_rgba(0,0,0,0.03)] space-y-4.5 ${activeTheme.formCardBg} ${activeTheme.cardBorder}`}
+                className={`border rounded-[20px] p-4 sm:p-4.5 shadow-[0_10px_28px_rgba(255,46,136,0.07)] space-y-3.5 ${activeTheme.formCardBg} ${activeTheme.cardBorder}`}
               >
                 <div>
-                  <h2 className={`text-base sm:text-lg font-extrabold ${activeTheme.textColor} tracking-tight flex items-center gap-2`}>
+                  <h2 className={`text-sm sm:text-base font-extrabold ${activeTheme.textColor} tracking-tight flex items-center gap-2`}>
                     <span>What's on your mind?</span>
                   </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                  <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
                     Describe your mood and let AI create beautiful personalized Shayari.
                   </p>
                 </div>
 
-                <form onSubmit={handleGenerate} className="space-y-4">
-                  <div className="space-y-1.5">
+                <form onSubmit={handleGenerate} className="space-y-3">
+                  <div className="space-y-1">
                     <div className="relative">
-                      <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-rose-500 dark:text-rose-400 pointer-events-none" />
+                      <Sparkles className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#FF2E88] pointer-events-none" />
                       <input
                         type="text"
                         id="mood_input"
@@ -3441,76 +3456,91 @@ export default function App() {
                         }}
                         placeholder="e.g. rain love, melancholic alone, broken trust, motivation..."
                         maxLength={150}
-                        className={`w-full h-[56px] bg-white dark:bg-slate-950/60 border rounded-2xl pl-12 pr-11 text-xs sm:text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-400/40 focus:border-rose-400 transition-all duration-250 shadow-2xs ${activeTheme.cardBorder}`}
+                        className="w-full h-[52px] bg-white/90 dark:bg-slate-950/60 backdrop-blur-md border border-pink-100 dark:border-slate-800 rounded-[16px] pl-10 pr-9 text-xs sm:text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-[#FF2E88]/15 focus:border-[#FF2E88] transition-all duration-200 shadow-2xs"
                       />
                       {userInput.length > 0 && (
                         <button
                           type="button"
-                          onClick={() => setUserInput("")}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all duration-200 cursor-pointer"
+                          onClick={() => {
+                            triggerHapticFeedback();
+                            setUserInput("");
+                          }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all duration-200 cursor-pointer"
                           title="Clear text"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
-                    <p className="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500 font-medium pl-1">
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 font-medium pl-1">
                       Example: Love, Rain, Sad, Alone, Motivation...
                     </p>
                   </div>
 
                   {/* Premium Compact Customization Toolbar */}
-                  <div className="pt-1">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                       <button
                         type="button"
-                        onClick={() => setActiveToolbarPanel(activeToolbarPanel === "textStyle" ? null : "textStyle")}
-                        className={`h-10 sm:h-11 px-3 rounded-xl sm:rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all duration-250 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                        onClick={() => {
+                          triggerHapticFeedback();
+                          setActiveToolbarPanel(activeToolbarPanel === "textStyle" ? null : "textStyle");
+                        }}
+                        className={`h-[52px] px-2 rounded-[16px] border text-[15px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer ${
                           activeToolbarPanel === "textStyle"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs scale-[1.02]`
-                            : `bg-white dark:bg-slate-900 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-800 shadow-2xs`
+                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-md scale-[1.01]`
+                            : `bg-white/90 dark:bg-slate-900/90 backdrop-blur-md ${activeTheme.textColor} border-pink-100/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs hover:shadow-xs`
                         }`}
                       >
-                        <span className="text-sm">🎨</span>
+                        <Palette className={`w-5 h-5 shrink-0 ${activeToolbarPanel === "textStyle" ? "text-white" : "text-[#FF2E88]"}`} />
                         <span>Text Style</span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => setActiveToolbarPanel(activeToolbarPanel === "language" ? null : "language")}
-                        className={`h-10 sm:h-11 px-3 rounded-xl sm:rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all duration-250 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                        onClick={() => {
+                          triggerHapticFeedback();
+                          setActiveToolbarPanel(activeToolbarPanel === "language" ? null : "language");
+                        }}
+                        className={`h-[52px] px-2 rounded-[16px] border text-[15px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer ${
                           activeToolbarPanel === "language"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs scale-[1.02]`
-                            : `bg-white dark:bg-slate-900 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-800 shadow-2xs`
+                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-md scale-[1.01]`
+                            : `bg-white/90 dark:bg-slate-900/90 backdrop-blur-md ${activeTheme.textColor} border-pink-100/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs hover:shadow-xs`
                         }`}
                       >
-                        <span className="text-sm">🌐</span>
+                        <Languages className={`w-5 h-5 shrink-0 ${activeToolbarPanel === "language" ? "text-white" : "text-[#FF2E88]"}`} />
                         <span>Language</span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => setActiveToolbarPanel(activeToolbarPanel === "weight" ? null : "weight")}
-                        className={`h-10 sm:h-11 px-3 rounded-xl sm:rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all duration-250 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                        onClick={() => {
+                          triggerHapticFeedback();
+                          setActiveToolbarPanel(activeToolbarPanel === "weight" ? null : "weight");
+                        }}
+                        className={`h-[52px] px-2 rounded-[16px] border text-[15px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer ${
                           activeToolbarPanel === "weight"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs scale-[1.02]`
-                            : `bg-white dark:bg-slate-900 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-800 shadow-2xs`
+                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-md scale-[1.01]`
+                            : `bg-white/90 dark:bg-slate-900/90 backdrop-blur-md ${activeTheme.textColor} border-pink-100/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs hover:shadow-xs`
                         }`}
                       >
-                        <span className="text-sm">🔤</span>
+                        <Type className={`w-5 h-5 shrink-0 ${activeToolbarPanel === "weight" ? "text-white" : "text-[#FF2E88]"}`} />
                         <span>Weight</span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => setActiveToolbarPanel(activeToolbarPanel === "cardStyle" ? null : "cardStyle")}
-                        className={`h-10 sm:h-11 px-3 rounded-xl sm:rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all duration-250 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                        onClick={() => {
+                          triggerHapticFeedback();
+                          setActiveToolbarPanel(activeToolbarPanel === "cardStyle" ? null : "cardStyle");
+                        }}
+                        className={`h-[52px] px-2 rounded-[16px] border text-[15px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer ${
                           activeToolbarPanel === "cardStyle"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs scale-[1.02]`
-                            : `bg-white dark:bg-slate-900 ${activeTheme.textColor} ${activeTheme.cardBorder} hover:bg-slate-50 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-800 shadow-2xs`
+                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-md scale-[1.01]`
+                            : `bg-white/90 dark:bg-slate-900/90 backdrop-blur-md ${activeTheme.textColor} border-pink-100/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs hover:shadow-xs`
                         }`}
                       >
-                        <span className="text-sm">🖼️</span>
+                        <ImageIcon className={`w-5 h-5 shrink-0 ${activeToolbarPanel === "cardStyle" ? "text-white" : "text-[#FF2E88]"}`} />
                         <span>Card Style</span>
                       </button>
                     </div>
@@ -3836,9 +3866,10 @@ export default function App() {
                   <button
                     type="submit"
                     disabled={isLoading || isGenerateDisabledBy429}
-                    className={`w-full h-[56px] bg-gradient-to-r ${activeTheme.buttonGrad} text-white text-sm sm:text-base font-extrabold rounded-2xl flex items-center justify-center gap-2.5 shadow-md hover:shadow-lg transition-all duration-250 active:scale-[0.98] disabled:opacity-80 disabled:cursor-not-allowed cursor-pointer`}
+                    onClick={triggerHapticFeedback}
+                    className="w-full h-[54px] bg-gradient-to-r from-[#FF2E88] to-[#7B2FF7] text-white text-sm sm:text-base font-extrabold rounded-[16px] flex items-center justify-center gap-2 shadow-[0_8px_25px_rgba(255,46,136,0.35)] hover:shadow-[0_12px_30px_rgba(255,46,136,0.45)] hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 disabled:opacity-80 disabled:cursor-not-allowed cursor-pointer group"
                   >
-                    <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+                    <Sparkles className="w-5 h-5 text-amber-300 animate-pulse group-hover:rotate-12 transition-transform" />
                     <span>
                       {isLoading 
                         ? "Weaving Classic Poetry..." 
@@ -4706,50 +4737,80 @@ export default function App() {
         </div>
 
         {/* Dynamic Android Material Bottom Tab Bar */}
-        <nav className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg md:max-w-2xl h-[calc(64px+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] ${activeTheme.navBg} border-t ${activeTheme.navBorder} backdrop-blur-md flex items-center justify-around z-30 shrink-0`}>
+        <nav className="fixed bottom-0 left-0 right-0 max-w-lg md:max-w-2xl mx-auto h-[calc(60px+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white/85 dark:bg-slate-900/85 backdrop-blur-[18px] border-t border-white/60 dark:border-slate-800/80 rounded-t-[20px] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] flex items-center justify-around z-[99999] shrink-0 transition-all duration-200">
           <button
-            onClick={() => setActiveTab("generator")}
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-              activeTab === "generator" ? activeTheme.iconColor + " scale-105 font-black" : "text-slate-400 hover:text-slate-600"
+            type="button"
+            onClick={() => {
+              triggerHapticFeedback();
+              setActiveTab("generator");
+            }}
+            className={`flex flex-col items-center justify-center relative h-full flex-1 transition-all duration-200 cursor-pointer ${
+              activeTab === "generator" ? "text-[#FF2E88] font-bold" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 font-medium"
             }`}
           >
-            <Compass className="w-5 h-5" />
-            <span className="text-[9px] font-sans">Weave</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("saved")}
-            className={`flex flex-col items-center gap-1 cursor-pointer relative transition-all ${
-              activeTab === "saved" ? activeTheme.iconColor + " scale-105 font-black" : "text-slate-400 hover:text-slate-600"
-            }`}
-          >
-            <Heart className="w-5 h-5" />
-            <span className="text-[9px] font-sans">Saved</span>
-            {savedShayaris.length > 0 && (
-              <span className={`absolute -top-1.5 -right-2 bg-gradient-to-r ${activeTheme.buttonGrad} text-white text-[8px] font-mono font-bold rounded-full w-4 h-4 flex items-center justify-center animate-bounce shadow-3xs`}>
-                {savedShayaris.length}
-              </span>
+            {activeTab === "generator" && (
+              <span className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#FF2E88] shadow-[0_0_8px_#FF2E88] transition-all duration-200" />
             )}
+            <Compass className={`w-[22px] h-[22px] transition-transform duration-200 ${activeTab === "generator" ? "scale-105" : "scale-100"}`} />
+            <span className="text-[11px] leading-tight font-sans mt-0.5">Weave</span>
           </button>
 
           <button
-            onClick={() => setActiveTab("about")}
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-              activeTab === "about" ? activeTheme.iconColor + " scale-105 font-black" : "text-slate-400 hover:text-slate-600"
+            type="button"
+            onClick={() => {
+              triggerHapticFeedback();
+              setActiveTab("saved");
+            }}
+            className={`flex flex-col items-center justify-center relative h-full flex-1 transition-all duration-200 cursor-pointer ${
+              activeTab === "saved" ? "text-[#FF2E88] font-bold" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 font-medium"
             }`}
           >
-            <BookOpen className="w-5 h-5" />
-            <span className="text-[9px] font-sans">Legends</span>
+            {activeTab === "saved" && (
+              <span className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#FF2E88] shadow-[0_0_8px_#FF2E88] transition-all duration-200" />
+            )}
+            <div className="relative">
+              <Heart className={`w-[22px] h-[22px] transition-transform duration-200 ${activeTab === "saved" ? "scale-105" : "scale-100"}`} />
+              {savedShayaris.length > 0 && (
+                <span className="absolute -top-1.5 -right-2 bg-gradient-to-r from-[#FF2E88] to-[#7B2FF7] text-white text-[9px] font-mono font-bold rounded-full w-4 h-4 flex items-center justify-center animate-bounce shadow-xs">
+                  {savedShayaris.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] leading-tight font-sans mt-0.5">Saved</span>
           </button>
 
           <button
-            onClick={() => setActiveTab("settings")}
-            className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-              activeTab === "settings" ? activeTheme.iconColor + " scale-105 font-black" : "text-slate-400 hover:text-slate-600"
+            type="button"
+            onClick={() => {
+              triggerHapticFeedback();
+              setActiveTab("about");
+            }}
+            className={`flex flex-col items-center justify-center relative h-full flex-1 transition-all duration-200 cursor-pointer ${
+              activeTab === "about" ? "text-[#FF2E88] font-bold" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 font-medium"
             }`}
           >
-            <Palette className="w-5 h-5" />
-            <span className="text-[9px] font-sans">Theme</span>
+            {activeTab === "about" && (
+              <span className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#FF2E88] shadow-[0_0_8px_#FF2E88] transition-all duration-200" />
+            )}
+            <BookOpen className={`w-[22px] h-[22px] transition-transform duration-200 ${activeTab === "about" ? "scale-105" : "scale-100"}`} />
+            <span className="text-[11px] leading-tight font-sans mt-0.5">Legends</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              triggerHapticFeedback();
+              setActiveTab("settings");
+            }}
+            className={`flex flex-col items-center justify-center relative h-full flex-1 transition-all duration-200 cursor-pointer ${
+              activeTab === "settings" ? "text-[#FF2E88] font-bold" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 font-medium"
+            }`}
+          >
+            {activeTab === "settings" && (
+              <span className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#FF2E88] shadow-[0_0_8px_#FF2E88] transition-all duration-200" />
+            )}
+            <Palette className={`w-[22px] h-[22px] transition-transform duration-200 ${activeTab === "settings" ? "scale-105" : "scale-100"}`} />
+            <span className="text-[11px] leading-tight font-sans mt-0.5">Theme</span>
           </button>
         </nav>
 
@@ -5226,11 +5287,6 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* Subtle outer metadata tag */}
-      <p className="text-[9px] font-mono text-slate-500 tracking-widest uppercase font-black my-5 text-center leading-none">
-        © {new Date().getFullYear()} MOODY SHAYARI • POWERED BY ADVANCED POETIC AI
-      </p>
 
       {/* Gemini Rate Limit / Quota Exceeded (429) Modal Dialog */}
       <RateLimitDialog
