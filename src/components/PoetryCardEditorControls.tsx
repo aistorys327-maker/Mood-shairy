@@ -394,18 +394,23 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
 
             {/* Tab Selector */}
             <div className="flex p-0.5 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-x-auto no-scrollbar">
-              {["luxury", "solids"].map((tab) => (
+              {[
+                { id: "trending", label: "Trending Gradients" },
+                { id: "gradients", label: "Gradients" },
+                { id: "textures", label: "Texture" },
+                { id: "solids", label: "Solids" },
+              ].map((tab) => (
                 <button
-                  key={tab}
+                  key={tab.id}
                   type="button"
-                  onClick={() => setBgTab(tab as any)}
+                  onClick={() => setBgTab(tab.id as any)}
                   className={`flex-1 py-1 px-2 text-center text-[10px] font-bold rounded-lg cursor-pointer transition-all whitespace-nowrap capitalize ${
-                    bgTab === tab
+                    bgTab === tab.id
                       ? "bg-white text-indigo-600 shadow-sm dark:bg-slate-800 dark:text-indigo-400"
                       : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
                   }`}
                 >
-                  {tab === "luxury" ? "Card Styles 🖼️" : "Solids 🎨"}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -669,119 +674,6 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
                         </button>
                       );
                     })}
-                  </div>
-                </div>
-              )}
-
-              {bgTab === "luxury" && (
-                <div className="space-y-3 animate-fadeIn">
-                  {/* Category Filter Tabs */}
-                  <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1.5 scroll-smooth select-none">
-                    {["All", "❤️ Love", "💔 Sad", "🥀 Broken", "😎 Attitude", "🧑‍🦲 Alone", "🤝 Friendship", "🔥 Motivational", "🌙 Islamic", "🌱 Life", "🌧️ Rain", "🌿 Nature", "😊 Happy", "🏆 Success", "🤝 Trust", "👨‍👩‍👧 Family", "💌 Miss You", "💖 Romantic", "🩹 Pain", "🕊️ Hope", "🎉 Festival"].map((cat) => {
-                      const isCatSelected = selectedCategory === cat;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setSelectedCategory?.(cat)}
-                          className={`px-2.5 py-1 rounded-full text-[9px] font-bold whitespace-nowrap cursor-pointer transition-all border ${
-                            isCatSelected
-                              ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white shadow-xs"
-                              : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-150 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850"
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Swatches Grid */}
-                  <div className="grid grid-cols-5 gap-2 select-none">
-                    {/* Default Option to clear/reset */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditedCardStyleBg?.("");
-                        showToast("Using original theme colors!");
-                      }}
-                      className={`aspect-square w-full rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 ${
-                        !editedCardStyleBg
-                          ? "border-indigo-500 bg-indigo-50/30 dark:bg-indigo-950/20"
-                          : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50"
-                      }`}
-                    >
-                      <span className="text-[12px]">🎨</span>
-                      <span className="text-[7px] font-bold text-slate-500 dark:text-slate-400 leading-none mt-1">Default</span>
-                    </button>
-
-                    {isLoadingStyles ? (
-                      <div className="col-span-4 flex items-center gap-2 text-[10px] text-slate-400 italic py-2 justify-center">
-                        <span className="w-3.5 h-3.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></span>
-                        Loading styles...
-                      </div>
-                    ) : (() => {
-                      const filteredStyles = (loadedCardStyles || []).filter((stylePath) => matchesCategory(stylePath, selectedCategory));
-
-                      if (filteredStyles.length === 0) {
-                        return (
-                          <div className="col-span-4 text-[10px] text-slate-400 dark:text-slate-500 font-bold italic py-4 text-center">
-                            No Card Styles Available
-                          </div>
-                        );
-                      }
-
-                      return filteredStyles.map((stylePath) => {
-                        const isSelected = editedCardStyleBg === stylePath;
-                        const { cleanName } = getCategoryAndName(stylePath);
-                        
-                        return (
-                          <button
-                            key={stylePath}
-                            type="button"
-                            onClick={() => {
-                              setEditedCardStyleBg?.(stylePath);
-                              setEditedBgColor("");
-                              setEditedBgGradient("");
-                              setEditedBgTexture("");
-                              showToast(`${cleanName} style previewed!`);
-                            }}
-                            className={`aspect-square w-full rounded-xl border-2 overflow-hidden cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-xs relative flex items-center justify-center bg-slate-100 dark:bg-slate-950 ${
-                              isSelected
-                                ? "border-indigo-500 ring-2 ring-indigo-500/20"
-                                : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
-                            }`}
-                            title={cleanName}
-                          >
-                            <img
-                              src={stylePath}
-                              alt={cleanName}
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
-                                if (placeholder) placeholder.classList.remove("hidden");
-                              }}
-                            />
-                            <div className="hidden w-full h-full bg-slate-800 dark:bg-slate-900 flex flex-col items-center justify-center p-1 text-center select-none">
-                              <span className="text-[12px]">🎨</span>
-                              <span className="text-[5px] font-bold text-slate-300 truncate max-w-full leading-tight">{cleanName}</span>
-                            </div>
-                            <div className="absolute bottom-0 inset-x-0 bg-black/60 py-0.5 text-[5px] font-black text-white text-center truncate px-0.5 leading-none">
-                              {cleanName}
-                            </div>
-                            {isSelected && (
-                              <div className="absolute inset-0 bg-indigo-600/10 flex items-center justify-center">
-                                <div className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                                  <Check className="w-2 h-2 stroke-[3]" />
-                                </div>
-                              </div>
-                            )}
-                          </button>
-                        );
-                      });
-                    })()}
                   </div>
                 </div>
               )}
@@ -1474,7 +1366,7 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
                   <div className="flex gap-2 items-center">
                     <button
                       type="button"
-                      onClick={() => setEditedImageRotate((prev) => (prev - 15 + 360) % 360)}
+                      onClick={() => setEditedImageRotate((editedImageRotate - 15 + 360) % 360)}
                       className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer active:scale-95 transition-all text-xs font-bold"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -1490,7 +1382,7 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
                     />
                     <button
                       type="button"
-                      onClick={() => setEditedImageRotate((prev) => (prev + 15) % 360)}
+                      onClick={() => setEditedImageRotate((editedImageRotate + 15) % 360)}
                       className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer active:scale-95 transition-all text-xs font-bold"
                     >
                       <RotateCw className="w-3.5 h-3.5" />

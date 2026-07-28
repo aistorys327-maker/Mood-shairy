@@ -2598,7 +2598,7 @@ export default function App() {
   const [editedTextBoxWidth, setEditedTextBoxWidth] = useState<number>(96);
   const [editedTextBoxHeight, setEditedTextBoxHeight] = useState<number>(78);
   const [editedTextWrapping, setEditedTextWrapping] = useState<"wrap" | "nowrap">("wrap");
-  const [bgTab, setBgTab] = useState<"solids" | "gradients" | "trending" | "textures" | "luxury">("solids");
+  const [bgTab, setBgTab] = useState<"solids" | "gradients" | "trending" | "textures" | "luxury">("trending");
   const [editedBgTexture, setEditedBgTexture] = useState<string>("");
   const [editedImageFilter, setEditedImageFilter] = useState<string>("none");
   const [editedHighlightKeywords, setEditedHighlightKeywords] = useState<boolean>(false);
@@ -4957,7 +4957,7 @@ export default function App() {
                               ...modalSpecs.cardVariables, 
                               "--font-size-scale": editedTextScale,
                               ...modalSpecs.cardStyle,
-                            }}
+                            } as React.CSSProperties}
                           className={`shayari-card relative overflow-hidden rounded-[32px] ${modalSpecs.paddingClass} border ${activeTheme.cardBorder} shadow-[0_20px_50px_rgba(0,0,0,0.03)] flex flex-col justify-center items-center transition-all duration-300`}
                         >
                           {/* Background Container */}

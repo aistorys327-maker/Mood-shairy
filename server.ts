@@ -107,42 +107,85 @@ app.post("/api/generate", async (req, res) => {
     let languagePrompt = "";
     let sherDescription = "";
     if (targetLanguage === "urdu") {
-      languagePrompt = `Generate 5 original Urdu shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
+      languagePrompt = `You are a master Urdu poet. Generate 5 original, expressive, and beautiful Urdu shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
 Write exactly 5 completely new, unique, and fresh Urdu shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
-Each shayari must be beautifully crafted and emotionally rich, containing exactly 2 to 4 lines.
-The primary 'sher' field MUST be written strictly and entirely in beautiful original Urdu Nastaliq script (NOT Devanagari, NOT Hinglish).
-For each shayari, provide the following pieces of information:
-1. Urdu Nastaliq text (using clean original Urdu Nastaliq script and layout split by newline characters in the 'sher' field).
-2. Latin transliteration / Hinglish (representing the Urdu pronunciation cleanly in the 'transliteration' field).
-3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses (in the 'translation' field).
-4. Name of the poet (could be Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or 'Traditional' if anonymous/classical).
-5. The associated mood label.`;
-      sherDescription = "2 to 4 lines of original Shayari strictly in beautiful Urdu Nastaliq script (Arabic script for Urdu), separated by newlines";
+
+CRITICAL LENGTH AND NATURAL VARIATION RULES:
+- Generate a random, natural line count for each shayari based on its emotion and poetic beauty.
+- Absolute Minimum: 2 lines. Absolute Maximum: 8 lines. NEVER exceed 8 lines.
+- Across the 5 generated shayaris, follow this natural probability distribution for length:
+  • ~70% of shayaris should be 4 to 5 lines (preferred standard length).
+  • ~20% of shayaris should be 6 to 7 lines (richer, detailed poetry).
+  • ~10% of shayaris should be 2 to 3 lines (especially if the emotion naturally suits a concise, punchy verse like attitude, heartbreak, or a sharp ending).
+- Add proper line breaks (\\n) between every line. Do NOT combine lines into paragraphs.
+- Keep the text centered, balanced, and card-friendly.
+
+SCRIPT REQUIREMENT:
+The primary 'sher' field MUST be written strictly and entirely in original Urdu script (Nastaliq/Arabic script for Urdu).
+
+For each shayari, provide:
+1. Urdu text in 'sher' field (2 to 8 lines separated by \\n, 4-5 lines preferred).
+2. Latin transliteration / Hinglish in 'transliteration' field.
+3. Plain English translation capturing the authentic essence and emotional depth in 'translation' field.
+4. Name of the poet in 'poet' field (e.g., Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or Traditional).
+5. The associated mood label in 'mood' field.`;
+      sherDescription = "2 to 8 lines of original Shayari strictly in beautiful Urdu Nastaliq script (Arabic script for Urdu), separated by newlines (4-5 lines preferred, max 8 lines)";
     } else if (targetLanguage === "hinglish") {
-      languagePrompt = `Generate 5 original Hinglish shayaris (Hindi/Urdu written in Latin/Roman script). Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
+      languagePrompt = `You are a master poet. Generate 5 original, expressive, and beautiful Hinglish shayaris (Hindi/Urdu written in Latin/Roman script). Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
 Write exactly 5 completely new, unique, and fresh Hinglish shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
-Each shayari must be beautifully crafted and emotionally rich, containing exactly 2 to 4 lines.
-The primary 'sher' field MUST be written strictly and entirely in Latin/Roman script as Hinglish (NOT Devanagari, NOT Urdu Nastaliq script).
-For each shayari, provide the following pieces of information:
-1. Hinglish text (using clean Latin/Roman script representation of Hindi/Urdu, split by newline characters in the 'sher' field).
-2. Latin transliteration / Hinglish (representing the Urdu or Hindi pronunciation cleanly in the 'transliteration' field).
-3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses (in the 'translation' field).
-4. Name of the poet (could be Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or 'Traditional' if anonymous/classical).
-5. The associated mood label.`;
-      sherDescription = "2 to 4 lines of original Shayari strictly in beautiful Hinglish (Latin/Roman script representing Hindi/Urdu pronunciation), separated by newlines";
+
+CRITICAL LENGTH AND NATURAL VARIATION RULES:
+- Generate a random, natural line count for each shayari based on its emotion and poetic beauty.
+- Absolute Minimum: 2 lines. Absolute Maximum: 8 lines. NEVER exceed 8 lines.
+- Across the 5 generated shayaris, follow this natural probability distribution for length:
+  • ~70% of shayaris should be 4 to 5 lines (preferred standard length).
+  • ~20% of shayaris should be 6 to 7 lines (richer, detailed poetry).
+  • ~10% of shayaris should be 2 to 3 lines (especially if the emotion naturally suits a concise, punchy verse like attitude, heartbreak, or a sharp ending).
+- Add proper line breaks (\\n) between every line. Do NOT combine lines into paragraphs.
+- Keep the text centered, balanced, and card-friendly.
+
+SCRIPT REQUIREMENT:
+The primary 'sher' field MUST be written strictly and entirely in Latin/Roman script as Hinglish (NOT Devanagari, NOT Urdu script).
+
+For each shayari, provide:
+1. Hinglish text in 'sher' field (2 to 8 lines separated by \\n, 4-5 lines preferred).
+2. Latin transliteration / Hinglish in 'transliteration' field.
+3. Plain English translation capturing the authentic essence and emotional depth in 'translation' field.
+4. Name of the poet in 'poet' field (e.g., Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or Traditional).
+5. The associated mood label in 'mood' field.`;
+      sherDescription = "2 to 8 lines of original Shayari strictly in beautiful Hinglish (Latin/Roman script representing Hindi/Urdu pronunciation), separated by newlines (4-5 lines preferred, max 8 lines)";
     } else {
       // Default: Hindi
-      languagePrompt = `Generate 5 original Hindi shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
+      languagePrompt = `You are a master Hindi poet. Generate 5 original, expressive, and beautiful Hindi shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
 Write exactly 5 completely new, unique, and fresh Hindi shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
-Each shayari must be beautifully crafted and emotionally rich, containing exactly 2 to 4 lines.
-The primary 'sher' field MUST be written strictly and entirely in beautiful Devanagari Hindi script (NOT Urdu Nastaliq script, NOT Hinglish).
-For each shayari, provide the following pieces of information:
-1. Devanagari Hindi text (using clean original Hindi script and layout split by newline characters in the 'sher' field).
-2. Latin transliteration / Hinglish (representing the Hindi pronunciation cleanly in the 'transliteration' field).
-3. Plain English translation capturing the authentic essence and emotional depth of the couplet or verses (in the 'translation' field).
-4. Name of the poet (could be Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or 'Traditional' if anonymous/classical).
-5. The associated mood label.`;
-      sherDescription = "2 to 4 lines of original Shayari strictly in beautiful Hindi Devanagari script, separated by newlines";
+
+CRITICAL LENGTH AND NATURAL VARIATION RULES:
+- Generate a random, natural line count for each shayari based on its emotion and poetic beauty.
+- Absolute Minimum: 2 lines. Absolute Maximum: 8 lines. NEVER exceed 8 lines.
+- Across the 5 generated shayaris, follow this natural probability distribution for length:
+  • ~70% of shayaris should be 4 to 5 lines (preferred standard length).
+  • ~20% of shayaris should be 6 to 7 lines (richer, detailed poetry).
+  • ~10% of shayaris should be 2 to 3 lines (especially if the emotion naturally suits a concise, punchy verse like attitude, heartbreak, or a sharp ending).
+- Add proper line breaks (\\n) between every line. Do NOT combine lines into paragraphs.
+- Keep the text centered, balanced, and card-friendly.
+
+SCRIPT REQUIREMENT:
+The primary 'sher' field MUST be written strictly and entirely in beautiful Devanagari Hindi script (NOT Urdu script, NOT Hinglish).
+
+EXAMPLE FORMAT (Devanagari Hindi, 5 lines separated by \\n):
+बारिश की बूंदों में तेरा नाम मिला,
+खामोश हवाओं में एक पैगाम मिला।
+रात ने चुपके से तुझे याद किया,
+दिल ने फिर तेरा इंतज़ार किया।
+तू मिले तो मौसमों को सुकून मिला।
+
+For each shayari, provide:
+1. Devanagari Hindi text in 'sher' field (2 to 8 lines separated by \\n, 4-5 lines preferred).
+2. Latin transliteration / Hinglish in 'transliteration' field.
+3. Plain English translation capturing the authentic essence and emotional depth in 'translation' field.
+4. Name of the poet in 'poet' field (e.g., Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or Traditional).
+5. The associated mood label in 'mood' field.`;
+      sherDescription = "2 to 8 lines of original Shayari strictly in beautiful Hindi Devanagari script, separated by newlines (4-5 lines preferred, max 8 lines)";
     }
 
     const prompt = `${languagePrompt}${exclusionInstruction}`;
@@ -164,7 +207,7 @@ For each shayari, provide the following pieces of information:
     };
 
     // Try multiple model endpoints to bypass single-model transient high traffic or 503 limits
-    const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+    const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
     let responseText = "";
     let generationSuccessful = false;
     let rateLimitInfo: { isRateLimit: boolean; retryAfterSeconds: number | null; fullError: any } | null = null;
@@ -236,7 +279,7 @@ For each shayari, provide the following pieces of information:
   }
 });
 
-// API Endpoint to translate an existing shayari to a target language instantly using Gemini 3.5
+// API Endpoint to translate an existing shayari to a target language instantly using Gemini 3.6
 app.post("/api/translate", async (req, res) => {
   try {
     const { text, targetLanguage, poet, mood } = req.body;
@@ -282,7 +325,7 @@ Return the translated poetry text inside a JSON object with a single key 'transl
       required: ["translatedText"]
     };
 
-    const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+    const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
     let responseText = "";
     let translationSuccessful = false;
     let rateLimitInfo: { isRateLimit: boolean; retryAfterSeconds: number | null; fullError: any } | null = null;

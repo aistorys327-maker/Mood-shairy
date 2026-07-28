@@ -44,4 +44,5 @@ export interface Shayari {
   customWatermarkEnabled?: boolean;
   isCustomized?: boolean;
   customCardStyleBg?: string;
+  customAnimation?: string;
 }
