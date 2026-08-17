@@ -1,3 +1,8 @@
+export interface HighlightPhrase {
+  phrase: string;
+  color: string;
+}
+
 export interface Shayari {
   id: string;
   sher: string;
@@ -5,6 +10,8 @@ export interface Shayari {
   translation: string;
   poet: string;
   mood: string;
+  title?: string;
+  highlights?: HighlightPhrase[];
   isAI?: boolean;
   
   // Custom edit overrides
@@ -27,6 +34,7 @@ export interface Shayari {
   customTextX?: number;
   customTextY?: number;
   customTextScale?: number;
+  customTextRotate?: number;
   customTextShadow?: boolean;
   customImageFilter?: string;
   customHighlightKeywords?: boolean;
@@ -44,5 +52,7 @@ export interface Shayari {
   customWatermarkEnabled?: boolean;
   isCustomized?: boolean;
   customCardStyleBg?: string;
+  customBgOpacity?: number;
+  customTextGradient?: string;
   customAnimation?: string;
 }

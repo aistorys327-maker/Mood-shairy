@@ -1,11 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { 
-  Edit3, Layout, Palette, Type, Ruler, Paintbrush, Sparkles, Move, Image as ImageIcon,
-  Languages, Upload, ZoomIn, ZoomOut, RotateCw, RotateCcw, Highlighter,
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Check
+  Type, Palette, Layout, Image as ImageIcon, Languages, AlignLeft, AlignCenter, AlignRight,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, Check, Sparkles, Sliders, Upload, Trash2, X, Highlighter
 } from "lucide-react";
-import { convertTailwindGradientToCss, solidsMap, resolveTailwindColor } from "../backgroundUtils";
-import { matchesCategory } from "../App";
+import { convertTailwindGradientToCss, solidsMap } from "../backgroundUtils";
+import { HIGHLIGHT_COLORS as DEFAULT_HIGHLIGHT_COLORS, resolveHighlightHex, HighlightColorOption } from "../utils/highlightUtils";
 
 interface EditorControlsProps {
   activeTool: string;
@@ -16,8 +15,8 @@ interface EditorControlsProps {
   setEditedEmoji: (val: string) => void;
   editedRatio: "1:1" | "4:5" | "9:16" | "16:9";
   setEditedRatio: (val: "1:1" | "4:5" | "9:16" | "16:9") => void;
-  bgTab: "solids" | "gradients" | "trending" | "textures" | "luxury";
-  setBgTab: (val: "solids" | "gradients" | "trending" | "textures" | "luxury") => void;
+  bgTab: "cardStyles" | "solids" | "gradients" | "trending" | "textures" | "luxury";
+  setBgTab: (val: "cardStyles" | "solids" | "gradients" | "trending" | "textures" | "luxury") => void;
   editedBgColor: string;
   setEditedBgColor: (val: string) => void;
   editedBgGradient: string;
@@ -85,52 +84,77 @@ interface EditorControlsProps {
   setCustomHideEmoji: (val: boolean) => void;
   customHideWatermark: boolean;
   setCustomHideWatermark: (val: boolean) => void;
+  editedBgOpacity?: number;
+  setEditedBgOpacity?: (val: number) => void;
+  editedTextGradient?: string;
+  setEditedTextGradient?: (val: string) => void;
 }
 
-const getCategoryAndName = (stylePath: string) => {
-  const parts = stylePath.split("/").filter(Boolean);
-  const fileNameWithExt = parts[parts.length - 1] || stylePath;
-  const fileName = fileNameWithExt.replace(/\.[^/.]+$/, "");
-  
-  let categoryKey = "";
-  if (parts.length >= 2 && parts[parts.length - 2] !== "card_styles" && parts[parts.length - 2] !== "assets") {
-    categoryKey = parts[parts.length - 2].toLowerCase().trim();
-  } else {
-    const match = fileName.match(/^([a-zA-Z_]+)/);
-    categoryKey = match ? match[1].toLowerCase().trim() : "general";
-  }
+const PRESET_GRADIENTS = [
+  { name: "Pink Purple", value: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)" },
+  { name: "Sunset Glow", value: "linear-gradient(135deg, #f97316 0%, #eab308 50%, #ec4899 100%)" },
+  { name: "Peach Soft", value: "linear-gradient(135deg, #f43f5e 0%, #fb923c 100%)" },
+  { name: "Blue Purple", value: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)" },
+  { name: "Dark Neon", value: "linear-gradient(135deg, #090d16 0%, #06b6d4 100%)" },
+  { name: "Gold Cream", value: "linear-gradient(135deg, #fef3c7 0%, #fde047 50%, #f59e0b 100%)" },
+  { name: "Rose Glow", value: "linear-gradient(135deg, #FF2D8D 0%, #f43f5e 50%, #ec4899 100%)" },
+  { name: "Lavender", value: "linear-gradient(135deg, #ddd6fe 0%, #c084fc 100%)" },
+  { name: "Sky Blue", value: "linear-gradient(135deg, #38bdf8 0%, #1d4ed8 100%)" },
+  { name: "Emerald Mint", value: "linear-gradient(135deg, #059669 0%, #10b981 50%, #06b6d4 100%)" },
+  { name: "Black Gold", value: "linear-gradient(135deg, #09090b 0%, #27272a 50%, #d97706 100%)" },
+  { name: "Soft White", value: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)" },
+  { name: "Sunset Velvet", value: "linear-gradient(135deg, #FF007A 0%, #7B00FF 100%)" },
+  { name: "Royal Indigo", value: "linear-gradient(135deg, #1E1B4B 0%, #312E81 50%, #4338CA 100%)" },
+  { name: "Emerald Forest", value: "linear-gradient(135deg, #064E3B 0%, #047857 100%)" },
+  { name: "Midnight Obsidian", value: "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)" },
+  { name: "Rose Violet", value: "linear-gradient(135deg, #881337 0%, #4C0519 100%)" },
+  { name: "Gold Dusk", value: "linear-gradient(135deg, #78350F 0%, #B45309 100%)" },
+  { name: "Peach Blush", value: "linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%)" },
+  { name: "Soft Cream", value: "linear-gradient(135deg, #FEFCE8 0%, #FEF08A 100%)" },
+  { name: "Deep Cyber Violet", value: "linear-gradient(135deg, #2e1065 0%, #581c87 50%, #030712 100%)" },
+  { name: "Coral Sunrise", value: "linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)" },
+];
 
-  const categoryDisplayMap: Record<string, string> = {
-    love: "❤️ Love",
-    sad: "💔 Sad",
-    broken: "🥀 Broken",
-    attitude: "😎 Attitude",
-    alone: "🧑‍🦲 Alone",
-    friendship: "🤝 Friendship",
-    motivational: "🔥 Motivational",
-    islamic: "🌙 Islamic",
-    life: "🌱 Life",
-    rain: "🌧️ Rain",
-    nature: "🌿 Nature",
-    happy: "😊 Happy",
-    success: "🏆 Success",
-    trust: "🤝 Trust",
-    family: "👨‍👩‍👧 Family",
-    miss_you: "💌 Miss You",
-    romantic: "💖 Romantic",
-    pain: "🩹 Pain",
-    hope: "🕊️ Hope",
-    festival: "🎉 Festival"
-  };
+const PRESET_SOLIDS = [
+  { name: "Pure White", value: "#FFFFFF" },
+  { name: "Soft Slate", value: "#F8FAFC" },
+  { name: "Light Gray", value: "#F1F5F9" },
+  { name: "Rose Tint", value: "#FFF1F2" },
+  { name: "Mint Tint", value: "#F0FDFA" },
+  { name: "Cream Tint", value: "#FEFCE8" },
+  { name: "Dark Slate", value: "#0F172A" },
+  { name: "Deep Indigo", value: "#1E1B4B" },
+];
 
-  const category = categoryDisplayMap[categoryKey] || (categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1));
-  const cleanName = fileName
-    .replace(/[-_]/g, " ")
-    .replace(/([a-zA-Z])(\d+)/g, "$1 $2")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+const PRESET_TEXT_COLORS = [
+  { label: "Black", value: "text-slate-900", colorHex: "#0F172A" },
+  { label: "Charcoal", value: "text-slate-700", colorHex: "#334155" },
+  { label: "White", value: "text-white", colorHex: "#FFFFFF" },
+  { label: "Navy", value: "text-blue-900", colorHex: "#1E3A8A" },
+  { label: "Royal Blue", value: "text-blue-600", colorHex: "#2563EB" },
+  { label: "Sky Blue", value: "text-sky-500", colorHex: "#0EA5E9" },
+  { label: "Emerald", value: "text-emerald-800", colorHex: "#065F46" },
+  { label: "Mint", value: "text-emerald-500", colorHex: "#10B981" },
+  { label: "Purple", value: "text-purple-900", colorHex: "#581C87" },
+  { label: "Violet", value: "text-violet-600", colorHex: "#7C3AED" },
+  { label: "Hot Pink", value: "text-pink-500", colorHex: "#EC4899" },
+  { label: "Rose Red", value: "text-rose-600", colorHex: "#E11D48" },
+  { label: "Orange", value: "text-orange-600", colorHex: "#EA580C" },
+  { label: "Gold", value: "text-amber-600", colorHex: "#D97706" },
+  { label: "Chocolate", value: "text-amber-950", colorHex: "#451A03" },
+  { label: "Warm Sand", value: "text-stone-600", colorHex: "#57534E" },
+];
 
-  return { categoryKey, category, cleanName };
-};
+const PRESET_GRADIENT_TEXTS = [
+  { name: "Pink → Purple", value: "linear-gradient(to right, #ec4899, #8b5cf6)" },
+  { name: "Blue → Purple", value: "linear-gradient(to right, #3b82f6, #9333ea)" },
+  { name: "Orange → Pink", value: "linear-gradient(to right, #f97316, #ec4899)" },
+  { name: "Gold → Orange", value: "linear-gradient(to right, #eab308, #ea580c)" },
+  { name: "White → Pink", value: "linear-gradient(to right, #ffffff, #f472b6)" },
+  { name: "Black → Gray", value: "linear-gradient(to right, #0f172a, #64748b)" },
+  { name: "Emerald → Cyan", value: "linear-gradient(to right, #10b981, #06b6d4)" },
+  { name: "Rose → Gold", value: "linear-gradient(to right, #f43f5e, #f59e0b)" },
+];
 
 export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
   activeTool,
@@ -141,20 +165,13 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
   setEditedEmoji,
   editedRatio,
   setEditedRatio,
-  bgTab,
-  setBgTab,
   editedBgColor,
   setEditedBgColor,
   editedBgGradient,
   setEditedBgGradient,
-  editedBgTexture,
-  setEditedBgTexture,
   loadedCardStyles = [],
-  isLoadingStyles = false,
   editedCardStyleBg = "",
   setEditedCardStyleBg,
-  selectedCategory = "All",
-  setSelectedCategory,
   editedFontClass,
   setEditedFontClass,
   editedIsBold,
@@ -162,1274 +179,818 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
   editedTextSize,
   handleIncreaseTextSize,
   handleDecreaseTextSize,
-  convertTextSizeToPx,
   handleAutoFitText,
   editedLineSpacing,
   setEditedLineSpacing,
   editedTextBoxWidth,
   setEditedTextBoxWidth,
-  editedTextBoxHeight,
-  setEditedTextBoxHeight,
-  editedTextWrapping,
-  setEditedTextWrapping,
   editedTextColor,
   setEditedTextColor,
   editedTextShadow,
   setEditedTextShadow,
-  editedHighlightKeywords,
+  editedHighlightKeywords = false,
   setEditedHighlightKeywords,
-  editedHighlightColor,
+  editedHighlightColor = "gold",
   setEditedHighlightColor,
   textPos,
   setTextPos,
   handleMoveText,
   editedImage,
   setEditedImage,
-  imagePos,
-  setImagePos,
   handleImageUpload,
   editedImageMode,
   setEditedImageMode,
   editedImageScale,
   setEditedImageScale,
-  editedImageRotate,
-  setEditedImageRotate,
   editedImageFilter,
   setEditedImageFilter,
   isTranslatingId,
   handleTranslate,
   editingShayari,
-  showToast,
-  textures,
-  filterOptions,
-  premiumTextColors,
-  gradientTextColors,
-  HIGHLIGHT_COLORS,
-  FONTS,
+  filterOptions = [],
+  FONTS = [],
   customHideEmoji,
   setCustomHideEmoji,
-  customHideWatermark,
-  setCustomHideWatermark,
+  editedBgOpacity = 1.0,
+  setEditedBgOpacity,
+  editedTextGradient = "",
+  setEditedTextGradient,
 }) => {
+  const [failedCardStyles, setFailedCardStyles] = useState<Set<string>>(new Set());
+  const validCardStyles = loadedCardStyles.filter((s) => Boolean(s) && !failedCardStyles.has(s));
+
+  // Determine active tool (text, background, layout, image)
+  const currentTool = 
+    activeTool === "background" || activeTool === "layout" || activeTool === "image" 
+      ? activeTool 
+      : "text";
+
+  const handleSelectCardStyle = (styleUrl: string) => {
+    if (setEditedCardStyleBg) {
+      setEditedCardStyleBg(styleUrl);
+    }
+    setEditedBgGradient("");
+    setEditedBgColor("");
+  };
+
+  const handleSelectGradient = (gradValue: string) => {
+    setEditedBgGradient(gradValue);
+    if (setEditedCardStyleBg) setEditedCardStyleBg("");
+    setEditedBgColor("");
+  };
+
+  const handleSelectSolid = (colorValue: string) => {
+    setEditedBgColor(colorValue);
+    if (setEditedCardStyleBg) setEditedCardStyleBg("");
+    setEditedBgGradient("");
+  };
+
   return (
-    <div className="flex-[2_1_0%] flex flex-col w-full bg-white dark:bg-slate-900 overflow-hidden min-h-[220px] md:min-h-[260px]" id="modal-controls-section">
-      {/* Active Tool Controls Compact Panel */}
-      <div className="flex-1 overflow-y-auto p-5 pb-16 space-y-5 scrollbar-thin">
-        {activeTool === "verse" && (
-          <div className="space-y-4 animate-fadeIn">
-            {/* EDIT POETRY TEXT */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-450 uppercase tracking-widest block">Poetry Text (Sher)</label>
-              <textarea
-                value={editedSher}
-                onChange={(e) => setEditedSher(e.target.value)}
-                rows={3}
-                className="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium text-slate-800 leading-relaxed outline-none transition-all"
-                placeholder="Enter shayari text here..."
-              />
-            </div>
+    <div className="w-full flex-1 min-h-0 flex flex-col bg-white overflow-y-auto p-2.5 md:p-3 select-none space-y-2">
+      {/* STICKY 4-BUTTON TAB BAR DIRECTLY BELOW CARD PREVIEW */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md pb-2 pt-0.5 border-b border-slate-100 shrink-0">
+        <div className="grid grid-cols-4 gap-1.5 w-full">
+          <button
+            type="button"
+            onClick={() => setActiveTool("text")}
+            className={`py-2 px-1 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              currentTool === "text"
+                ? "bg-slate-900 text-white shadow-xs border border-slate-900"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60"
+            }`}
+          >
+            <Type className={`w-3.5 h-3.5 ${currentTool === "text" ? "text-indigo-400" : "text-indigo-600"}`} />
+            <span>Text</span>
+          </button>
 
-            {/* TRANSLATE QUICK ACTION */}
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-3">
+          <button
+            type="button"
+            onClick={() => setActiveTool("background")}
+            className={`py-2 px-1 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              currentTool === "background"
+                ? "bg-slate-900 text-white shadow-xs border border-slate-900"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60"
+            }`}
+          >
+            <Palette className={`w-3.5 h-3.5 ${currentTool === "background" ? "text-rose-400" : "text-rose-600"}`} />
+            <span>Bg</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTool("layout")}
+            className={`py-2 px-1 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              currentTool === "layout"
+                ? "bg-slate-900 text-white shadow-xs border border-slate-900"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60"
+            }`}
+          >
+            <Layout className={`w-3.5 h-3.5 ${currentTool === "layout" ? "text-amber-400" : "text-amber-600"}`} />
+            <span>Layout</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTool("image")}
+            className={`py-2 px-1 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              currentTool === "image"
+                ? "bg-slate-900 text-white shadow-xs border border-slate-900"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/60"
+            }`}
+          >
+            <ImageIcon className={`w-3.5 h-3.5 ${currentTool === "image" ? "text-emerald-400" : "text-emerald-600"}`} />
+            <span>Image</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ACTIVE SECTION CONTENTS */}
+      <div className="flex-1 space-y-3 pb-3">
+        {/* ================= 1. TEXT ================= */}
+        {currentTool === "text" && (
+          <div className="space-y-3.5 animate-fadeIn">
+            {/* Poetry Input & Quick Translations */}
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black text-slate-450 uppercase tracking-wider flex items-center gap-1 select-none">
-                  <Languages className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Instant Translate Verse</span>
-                </span>
-                {isTranslatingId === "modal" && (
-                  <span className="text-[8px] font-bold text-indigo-600 animate-pulse">Translating...</span>
-                )}
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: "hindi", name: "Hindi (हिन्दी)" },
-                  { id: "urdu", name: "Urdu (اردو)" },
-                  { id: "hinglish", name: "Hinglish" }
-                ].map((lang) => (
-                  <button
-                    key={lang.id}
-                    type="button"
-                    disabled={isTranslatingId === "modal"}
-                    onClick={() => {
-                      handleTranslate(lang.id as any, editedSher, (translated: string) => {
-                        setEditedSher(translated);
-                      }, editingShayari.poet, editingShayari.mood, "modal");
-                    }}
-                    className="py-2 px-1.5 rounded-lg text-[9px] font-extrabold text-center cursor-pointer transition-all bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 disabled:opacity-50 shadow-2xs"
-                  >
-                    {lang.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* EDIT MOOD EMOJI */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-450 uppercase tracking-widest block">Custom Card Emoji</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  maxLength={8}
-                  value={editedEmoji}
-                  onChange={(e) => setEditedEmoji(e.target.value)}
-                  className="w-20 text-center px-2 py-2 text-xs border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-bold outline-none"
-                />
-                <div className="flex gap-1.5 overflow-x-auto flex-1 pb-1 scrollbar-thin">
-                  {["✨", "❤️", "😢", "💔", "🤝", "😎", "😂", "💪", "🌹", "🕯️", "🌧️", "🌌"].map((emoji) => (
+                <label className="text-xs font-bold text-slate-800">Verse Text</label>
+                <div className="flex items-center gap-1">
+                  {["hindi", "urdu", "hinglish"].map((lang) => (
                     <button
-                      key={emoji}
+                      key={lang}
                       type="button"
-                      onClick={() => setEditedEmoji(emoji)}
-                      className={`px-2.5 py-1.5 border rounded-lg text-xs cursor-pointer transition-all hover:bg-slate-50 shrink-0 ${
-                        editedEmoji === emoji ? "border-indigo-500 bg-indigo-50 font-bold text-indigo-700" : "border-slate-100 bg-white"
-                      }`}
+                      disabled={isTranslatingId === "modal"}
+                      onClick={() => {
+                        handleTranslate(
+                          lang as any,
+                          editedSher,
+                          (translated: string) => setEditedSher(translated),
+                          editingShayari?.poet,
+                          editingShayari?.mood,
+                          "modal"
+                        );
+                      }}
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 transition-all border border-slate-200/60 capitalize cursor-pointer"
                     >
-                      {emoji}
+                      {lang}
                     </button>
                   ))}
                 </div>
               </div>
+              <textarea
+                value={editedSher}
+                onChange={(e) => setEditedSher(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-medium text-slate-800 leading-relaxed outline-none transition-all shadow-2xs"
+                placeholder="Type or paste poetry verse..."
+              />
             </div>
 
-            {/* EMOJI & WATERMARK TOGGLES */}
-            <div className="grid grid-cols-2 gap-3.5 pt-1 border-t border-slate-100">
-              <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">Emoji Display</span>
-                  <span className="text-[8px] text-slate-400">Show centered emoji</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCustomHideEmoji(!customHideEmoji)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    !customHideEmoji ? "bg-indigo-600" : "bg-slate-200"
-                  }`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                      !customHideEmoji ? "translate-x-4" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">Watermark</span>
-                  <span className="text-[8px] text-slate-400">Show card watermark</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCustomHideWatermark(!customHideWatermark)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    !customHideWatermark ? "bg-indigo-600" : "bg-slate-200"
-                  }`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                      !customHideWatermark ? "translate-x-4" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {activeTool === "ratio" && (
-          <div className="space-y-4 animate-fadeIn">
-            <div className="flex justify-between items-center">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Select Ratio</label>
-              <button
-                type="button"
-                onClick={handleAutoFitText}
-                className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider flex items-center gap-1 cursor-pointer bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100/50 hover:bg-indigo-100 transition-all active:scale-95"
-              >
-                <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
-                Fit Text
-              </button>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { id: "1:1", label: "Square", ratio: "1:1" },
-                { id: "4:5", label: "Portrait", ratio: "4:5" },
-                { id: "9:16", label: "Story", ratio: "9:16" },
-                { id: "16:9", label: "Landscape", ratio: "16:9" },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setEditedRatio(item.id as any)}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all cursor-pointer text-center ${
-                    editedRatio === item.id
-                      ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  <span className="text-[10px] font-extrabold">{item.label}</span>
-                  <span className={`text-[9px] font-mono mt-0.5 ${editedRatio === item.id ? "text-indigo-100" : "text-slate-400"}`}>
-                    {item.ratio}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <p className="text-[9px] text-slate-400 font-medium leading-relaxed mt-1">
-              {editedRatio === "1:1" && "⬜ Square (1:1): Perfect for Instagram grid posts and standard feeds."}
-              {editedRatio === "4:5" && "📱 Portrait (4:5): Optimized for high-density mobile feeds."}
-              {editedRatio === "9:16" && "🎬 Story (9:16): Ideal for Instagram Stories, TikToks, and vertical sharing."}
-              {editedRatio === "16:9" && "🖥️ Landscape (16:9): Best for widescreen displays and banners."}
-            </p>
-          </div>
-        )}
-
-        {activeTool === "background" && (
-          <div className="space-y-4 animate-fadeIn">
-            <div className="flex justify-between items-center mb-1">
-              <label className="text-[10px] font-black text-slate-450 uppercase tracking-widest block">Background Style</label>
-              <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50/80 px-2 py-0.5 rounded-full border border-indigo-100">
-                {editedCardStyleBg ? "Premium Active ✨" : editedBgTexture ? "Texture Active" : editedBgGradient ? "Gradient Active" : "Solid Active"}
-              </span>
-            </div>
-
-            {/* Tab Selector */}
-            <div className="flex p-0.5 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-x-auto no-scrollbar">
-              {[
-                { id: "trending", label: "Trending Gradients" },
-                { id: "gradients", label: "Gradients" },
-                { id: "textures", label: "Texture" },
-                { id: "solids", label: "Solids" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setBgTab(tab.id as any)}
-                  className={`flex-1 py-1 px-2 text-center text-[10px] font-bold rounded-lg cursor-pointer transition-all whitespace-nowrap capitalize ${
-                    bgTab === tab.id
-                      ? "bg-white text-indigo-600 shadow-sm dark:bg-slate-800 dark:text-indigo-400"
-                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Swatches Grid */}
-            <div className="space-y-2">
-              {bgTab === "solids" && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-[9px] text-slate-400">
-                    <span className="font-bold uppercase tracking-wider">Aesthetic Solids</span>
-                  </div>
-                  <div className="grid grid-cols-8 gap-2">
-                    {[
-                      { name: "Cream Soft", bg: "bg-slate-50" },
-                      { name: "Slate Dusk", bg: "bg-slate-900" },
-                      { name: "Sand Glow", bg: "bg-amber-50/90" },
-                      { name: "Velvet Rose", bg: "bg-rose-50/90" },
-                      { name: "Sage Green", bg: "bg-emerald-50/90" },
-                      { name: "Midnight Navy", bg: "bg-indigo-950" },
-                      { name: "Golden Ebony", bg: "bg-amber-950" },
-                      { name: "Purple Night", bg: "bg-purple-950" },
-                      { name: "Warm Orange", bg: "bg-orange-50" },
-                      { name: "Sky Mist", bg: "bg-sky-50" },
-                      { name: "Teal Fresh", bg: "bg-teal-50" },
-                      { name: "Pure Pitch", bg: "bg-zinc-950" },
-                      { name: "Plum Dark", bg: "bg-fuchsia-950" },
-                      { name: "Ocean Blue", bg: "bg-blue-900" },
-                      { name: "Emerald Moss", bg: "bg-emerald-900" },
-                      { name: "Clay Terracotta", bg: "bg-orange-900" },
-                      { name: "Rose Quartz", bg: "bg-rose-100" },
-                      { name: "Mint Ice", bg: "bg-teal-100/70" },
-                      { name: "Lavender Mist", bg: "bg-purple-100/70" },
-                      { name: "Pale Marigold", bg: "bg-amber-100/70" },
-                      { name: "Soft Olive", bg: "bg-lime-50" },
-                      { name: "Charcoal Mist", bg: "bg-slate-700" },
-                      { name: "Cocoa Gold", bg: "bg-amber-900" },
-                      { name: "Crimson Velvet", bg: "bg-rose-950" }
-                    ].map((item) => {
-                      const isActive = editedBgColor === item.bg && !editedBgGradient;
-                      return (
-                        <button
-                          key={item.name}
-                          type="button"
-                          onClick={() => {
-                            setEditedBgColor(item.bg);
-                            setEditedBgGradient("");
-                            setEditedBgTexture("");
-                          }}
-                          style={{ backgroundColor: solidsMap[item.bg] || (item.bg.startsWith("bg-[") ? item.bg.slice(4, -1) : resolveTailwindColor(item.bg.replace("bg-", ""))) }}
-                          className={`aspect-square w-full rounded-xl border border-slate-200/60 shadow-xs relative cursor-pointer transition-all hover:scale-110 focus:outline-none flex items-center justify-center ${
-                            item.bg
-                          } ${
-                            isActive
-                              ? "ring-2 ring-indigo-500 ring-offset-1 scale-105 border-transparent"
-                              : "hover:border-slate-300"
-                          }`}
-                          title={item.name}
-                        >
-                          {isActive && (
-                            <div className={`w-1.5 h-1.5 rounded-full ${
-                              item.bg.includes("950") || item.bg.includes("900") || item.bg.includes("slate-9") || item.bg.includes("black") || item.bg.includes("pitch") || item.bg.includes("slate-7") || item.bg.includes("amber-9")
-                                ? "bg-white"
-                                : "bg-slate-800"
-                            }`} />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {bgTab === "gradients" && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-[9px] text-slate-400">
-                    <span className="font-bold uppercase tracking-wider">Luxury Gradients</span>
-                  </div>
-                  <div className="grid grid-cols-8 gap-2">
-                    {[
-                      { name: "Instagram Gradient", grad: "from-fuchsia-600 via-pink-500 to-orange-400" },
-                      { name: "Sunset", grad: "from-amber-500 via-rose-500 to-violet-600" },
-                      { name: "Sunrise", grad: "from-orange-400 via-amber-300 to-cyan-200" },
-                      { name: "Ocean", grad: "from-cyan-500 via-blue-600 to-indigo-900" },
-                      { name: "Sky", grad: "from-sky-400 via-blue-400 to-indigo-500" },
-                      { name: "Aurora", grad: "from-teal-400 via-emerald-500 to-indigo-900" },
-                      { name: "Galaxy", grad: "from-purple-900 via-indigo-950 to-pink-900" },
-                      { name: "Neon Purple", grad: "from-fuchsia-600 via-purple-700 to-indigo-850" },
-                      { name: "Rose Gold", grad: "from-rose-300 via-pink-200 to-amber-200" },
-                      { name: "Royal Gold", grad: "from-yellow-600 via-amber-500 to-yellow-800" },
-                      { name: "Forest", grad: "from-emerald-900 via-green-950 to-teal-950" },
-                      { name: "Aqua", grad: "from-teal-300 via-cyan-400 to-blue-500" },
-                      { name: "Cotton Candy", grad: "from-pink-300 via-purple-200 to-sky-300" },
-                      { name: "Deep Space", grad: "from-slate-900 via-purple-950 to-slate-950" },
-                      { name: "Midnight", grad: "from-blue-950 via-indigo-950 to-slate-950" },
-                      { name: "Cherry Blossom", grad: "from-rose-100 via-pink-100 to-teal-50" },
-                      { name: "Vintage Sepia", grad: "from-amber-100 to-amber-200" },
-                      { name: "Cosmic Indigo", grad: "from-violet-600 to-indigo-700" },
-                      { name: "Solar Eclipse", grad: "from-amber-950 via-stone-900 to-zinc-950" },
-                      { name: "Mint Emerald", grad: "from-teal-300 via-emerald-100 to-indigo-200" },
-                      { name: "Nordic Cold", grad: "from-slate-900 to-zinc-900" },
-                      { name: "Royal Lavender", grad: "from-purple-800 to-indigo-900" },
-                      { name: "Romantic Rosewood", grad: "from-rose-400 to-pink-600" },
-                      { name: "Sunset Serenade", grad: "from-amber-200 via-orange-100 to-rose-200" },
-                      { name: "Stardust", grad: "from-indigo-200 via-slate-100 to-amber-100" },
-                      { name: "Forest Moss", grad: "from-emerald-400 to-cyan-500" },
-                      { name: "Plum Velvet", grad: "from-fuchsia-800 to-pink-600" },
-                      { name: "Sandalwood", grad: "from-amber-200 via-rose-200 to-teal-100" },
-                      { name: "Ice Palace", grad: "from-blue-200 via-cyan-100 to-indigo-300" },
-                      { name: "Sufi Night", grad: "from-violet-950 via-slate-900 to-zinc-950" },
-                      { name: "Copper Glow", grad: "from-orange-400 via-amber-500 to-rose-500" },
-                      { name: "Peppermint", grad: "from-teal-100 via-emerald-100 to-sky-100" }
-                    ].map((item) => {
-                      const isActive = editedBgGradient === item.grad;
-                      return (
-                        <button
-                          key={`bg-grad-tab-${item.name}`}
-                          type="button"
-                          onClick={() => {
-                            setEditedBgGradient(item.grad);
-                            setEditedBgColor("");
-                            setEditedBgTexture("");
-                          }}
-                          style={{ backgroundImage: convertTailwindGradientToCss(item.grad) }}
-                          className={`aspect-square w-full rounded-xl border border-slate-200/60 shadow-xs relative cursor-pointer transition-all hover:scale-110 focus:outline-none bg-gradient-to-br flex items-center justify-center ${
-                            item.grad
-                          } ${
-                            isActive
-                              ? "ring-2 ring-indigo-500 ring-offset-1 scale-105 border-transparent"
-                              : "hover:border-slate-300"
-                          }`}
-                          title={item.name}
-                        >
-                          {isActive && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {bgTab === "trending" && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-[9px] text-slate-400">
-                    <span className="font-bold uppercase tracking-wider">Trending Styles</span>
-                  </div>
-                  <div className="grid grid-cols-8 gap-2">
-                    {[
-                      { name: "Instagram Gradient", grad: "from-fuchsia-600 via-pink-500 to-orange-400" },
-                      { name: "Sunset", grad: "from-amber-500 via-rose-500 to-violet-600" },
-                      { name: "Sunrise", grad: "from-orange-400 via-amber-300 to-cyan-200" },
-                      { name: "Ocean", grad: "from-cyan-500 via-blue-600 to-indigo-900" },
-                      { name: "Sky", grad: "from-sky-400 via-blue-400 to-indigo-500" },
-                      { name: "Aurora", grad: "from-teal-400 via-emerald-500 to-indigo-900" },
-                      { name: "Galaxy", grad: "from-purple-900 via-indigo-950 to-pink-900" },
-                      { name: "Neon Purple", grad: "from-fuchsia-600 via-purple-700 to-indigo-850" },
-                      { name: "Rose Gold", grad: "from-rose-300 via-pink-200 to-amber-200" },
-                      { name: "Royal Gold", grad: "from-yellow-600 via-amber-500 to-yellow-800" },
-                      { name: "Forest", grad: "from-emerald-900 via-green-950 to-teal-950" },
-                      { name: "Aqua", grad: "from-teal-300 via-cyan-400 to-blue-500" },
-                      { name: "Cotton Candy", grad: "from-pink-300 via-purple-200 to-sky-300" },
-                      { name: "Deep Space", grad: "from-slate-900 via-purple-950 to-slate-950" },
-                      { name: "Midnight", grad: "from-blue-950 via-indigo-950 to-slate-950" },
-                      { name: "Matcha Latte", grad: "from-emerald-100 via-green-100 to-stone-100" },
-                      { name: "Lavender Dream", grad: "from-violet-200 via-purple-100 to-pink-100" },
-                      { name: "Cyberpunk Neon", grad: "from-purple-600 via-fuchsia-500 to-cyan-400" },
-                      { name: "Peach Sorbet", grad: "from-orange-200 via-amber-100 to-rose-200" },
-                      { name: "Holographic Foil", grad: "from-teal-200 via-indigo-100 to-pink-200" },
-                      { name: "Warm Oatmeal", grad: "from-amber-50 via-stone-100 to-amber-100" },
-                      { name: "Sage & Clay", grad: "from-emerald-50 via-stone-100 to-orange-100" },
-                      { name: "Bubblegum Sweet", grad: "from-pink-300 via-purple-300 to-indigo-300" },
-                      { name: "Velvet Plum", grad: "from-fuchsia-900 via-purple-950 to-slate-950" },
-                      { name: "Soft Olive", grad: "from-lime-950 via-emerald-950 to-zinc-950" },
-                      { name: "Desert Dusk", grad: "from-orange-800 via-rose-900 to-indigo-950" },
-                      { name: "Mint Emerald", grad: "from-teal-300 via-emerald-100 to-indigo-200" },
-                      { name: "Royal Lavender", grad: "from-purple-800 to-indigo-900" },
-                      { name: "Solar Eclipse", grad: "from-amber-950 via-stone-900 to-zinc-950" },
-                      { name: "Cherry Blossom", grad: "from-rose-100 via-pink-100 to-teal-50" },
-                      { name: "Nordic Cold", grad: "from-slate-900 to-zinc-900" },
-                      { name: "Boho Terracotta", grad: "from-orange-900 via-amber-900 to-stone-900" },
-                      { name: "Lemon Meringue", grad: "from-yellow-100 via-amber-100 to-orange-100" },
-                      { name: "Sweet Lavender", grad: "from-purple-200 via-violet-100 to-pink-100" },
-                      { name: "Golden Hour", grad: "from-orange-300 via-yellow-200 to-amber-300" },
-                      { name: "Stardust", grad: "from-indigo-200 via-slate-100 to-amber-100" },
-                      { name: "Forest Moss", grad: "from-emerald-400 to-cyan-500" },
-                      { name: "Plum Velvet", grad: "from-fuchsia-800 to-pink-600" },
-                      { name: "Sandalwood", grad: "from-amber-200 via-rose-200 to-teal-100" },
-                      { name: "Ice Palace", grad: "from-blue-200 via-cyan-100 to-indigo-300" },
-                      { name: "Sufi Night", grad: "from-violet-950 via-slate-900 to-zinc-950" },
-                      { name: "Copper Glow", grad: "from-orange-400 via-amber-500 to-rose-500" },
-                      { name: "Peppermint", grad: "from-teal-100 via-emerald-100 to-sky-100" }
-                    ].map((item) => {
-                      const isActive = editedBgGradient === item.grad;
-                      return (
-                        <button
-                          key={`trending-grad-tab-${item.name}`}
-                          type="button"
-                          onClick={() => {
-                            setEditedBgGradient(item.grad);
-                            setEditedBgColor("");
-                            setEditedBgTexture("");
-                          }}
-                          style={{ backgroundImage: convertTailwindGradientToCss(item.grad) }}
-                          className={`aspect-square w-full rounded-xl border border-slate-200/60 shadow-xs relative cursor-pointer transition-all hover:scale-110 focus:outline-none bg-gradient-to-br flex items-center justify-center ${
-                            item.grad
-                          } ${
-                            isActive
-                              ? "ring-2 ring-indigo-500 ring-offset-1 scale-105 border-transparent"
-                              : "hover:border-slate-300"
-                          }`}
-                          title={item.name}
-                        >
-                          {isActive && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {bgTab === "textures" && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-[9px] text-slate-400">
-                    <span className="font-bold uppercase tracking-wider">Texture Backdrops</span>
-                  </div>
-                  <div className="grid grid-cols-5 gap-2">
-                    {textures.map((item) => {
-                      const isActive = editedBgTexture === item.id;
-                      return (
-                        <button
-                          key={`texture-tab-${item.id}`}
-                          type="button"
-                          onClick={() => {
-                            setEditedBgTexture(item.id);
-                            setEditedBgColor(item.bgColor);
-                            setEditedBgGradient("");
-                            if (item.textColor) {
-                              setEditedTextColor(item.textColor);
-                            }
-                          }}
-                          style={{ ...item.style }}
-                          className={`aspect-square w-full rounded-xl border border-slate-200/60 shadow-xs relative overflow-hidden cursor-pointer transition-all hover:scale-110 focus:outline-none flex flex-col items-center justify-end p-1.5 ${
-                            isActive
-                              ? "ring-2 ring-indigo-500 ring-offset-1 scale-105 border-transparent"
-                              : "hover:border-slate-300"
-                          }`}
-                          title={item.name}
-                        >
-                          {item.overlay}
-                          <span className={`relative z-10 text-[8px] font-black tracking-wider uppercase text-center truncate w-full ${
-                            item.id === "wooden" || item.id === "smoke" || item.id === "glass" || item.id === "blur" || item.id === "frosted_glass" ? "text-white/90" : "text-slate-800/90"
-                          }`}>
-                            {item.name}
-                          </span>
-                          {isActive && (
-                            <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500 border border-white z-20" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTool === "font" && (
-          <div className="space-y-4 animate-fadeIn">
-            {/* Font Style Selection */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Font Family</label>
-              <div className="flex flex-row flex-nowrap gap-2 overflow-x-auto py-2 px-2 border border-slate-100 rounded-xl bg-slate-50/70 no-scrollbar w-full scroll-smooth">
+            {/* Typography Font Selection */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-800 block">Font Family</label>
+              <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                 {FONTS.map((font) => {
                   const isSelected = editedFontClass === font.class;
                   return (
                     <button
                       key={font.id}
                       type="button"
-                      onClick={() => {
-                        setEditedFontClass(font.class);
-                      }}
-                      className={`p-1.5 rounded-lg border text-left cursor-pointer transition-all duration-200 flex flex-col justify-between h-[50px] min-h-[50px] w-[95px] min-w-[95px] max-w-[105px] shrink-0 ${
+                      onClick={() => setEditedFontClass(font.class)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-medium border cursor-pointer transition-all shrink-0 ${
                         isSelected
-                          ? "bg-indigo-600 border-indigo-600 text-white shadow-sm scale-[1.01]"
-                          : "bg-white border-slate-200/60 hover:border-slate-300 text-slate-700 hover:bg-slate-50"
+                          ? "bg-slate-900 text-white border-slate-900 font-bold shadow-2xs"
+                          : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                       }`}
                     >
-                      <span className={`text-[7px] md:text-[8px] font-mono tracking-tight font-bold uppercase line-clamp-1 ${isSelected ? "text-indigo-200" : "text-slate-400"}`}>
-                        {font.name}
-                      </span>
-                      <span className={`text-[10px] md:text-[11px] mt-0.5 line-clamp-1 block leading-tight font-medium ${font.class}`}>
-                        ग़ज़ल Aa
-                      </span>
+                      <span className={font.class}>{font.name}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Font Weight Toggle */}
-            <div className="space-y-1.5 pt-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Font Weight</label>
-              <button
-                type="button"
-                onClick={() => setEditedIsBold(!editedIsBold)}
-                className={`w-full py-2.5 px-3 border rounded-xl text-xs font-bold transition-all ${
-                  editedIsBold
-                    ? "bg-indigo-600 border-transparent text-white shadow-sm"
-                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                {editedIsBold ? "Bold Weight: Active" : "Normal Weight: Regular"}
-              </button>
-            </div>
-          </div>
-        )}
+            {/* Text Color Options: Solid or Gradient */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800">Text Color / Style</label>
+                {editedTextGradient && (
+                  <button
+                    type="button"
+                    onClick={() => setEditedTextGradient && setEditedTextGradient("")}
+                    className="text-[10px] font-bold text-rose-500 hover:text-rose-600 cursor-pointer"
+                  >
+                    Clear Gradient
+                  </button>
+                )}
+              </div>
 
-        {activeTool === "size" && (
-          <div className="space-y-4 animate-fadeIn">
-            {/* Font Size Selection */}
+              {/* Solid Colors */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Solid Text Colors</span>
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                  {PRESET_TEXT_COLORS.map((c) => {
+                    const isSelected = !editedTextGradient && editedTextColor === c.value;
+                    return (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => {
+                          setEditedTextColor(c.value);
+                          if (setEditedTextGradient) setEditedTextGradient("");
+                        }}
+                        className={`py-1.5 px-1 rounded-xl border text-[10px] font-bold cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 ${
+                          isSelected
+                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs scale-[1.03]"
+                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0 shadow-2xs" style={{ backgroundColor: c.colorHex }} />
+                        <span className="truncate max-w-[50px]">{c.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Gradient Text Options */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">Gradient Text Effects</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {PRESET_GRADIENT_TEXTS.map((gt) => {
+                    const isSelected = editedTextGradient === gt.value;
+                    return (
+                      <button
+                        key={gt.name}
+                        type="button"
+                        onClick={() => {
+                          if (setEditedTextGradient) setEditedTextGradient(gt.value);
+                        }}
+                        className={`py-2 px-2 rounded-xl border text-[10px] font-extrabold cursor-pointer transition-all flex items-center justify-center ${
+                          isSelected
+                            ? "border-[#FF2D8D] ring-2 ring-[#FF2D8D]/50 bg-rose-50/50 shadow-2xs scale-[1.02]"
+                            : "border-slate-200/80 bg-slate-50 hover:bg-slate-100"
+                        }`}
+                      >
+                        <span 
+                          style={{ 
+                            backgroundImage: gt.value,
+                            WebkitBackgroundClip: "text",
+                            WebkitTextFillColor: "transparent",
+                            color: "transparent"
+                          }}
+                        >
+                          {gt.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Keyword Highlighting & Accent Color Controls */}
+            <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+                    <Highlighter className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">Keyword Highlights & Accent Color</span>
+                    <span className="text-[10px] text-slate-500">Colorize emotional phrases with vivid poetic accents</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (setEditedHighlightKeywords) {
+                      setEditedHighlightKeywords(!editedHighlightKeywords);
+                    }
+                  }}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    editedHighlightKeywords ? "bg-amber-500" : "bg-slate-300"
+                  }`}
+                  title={editedHighlightKeywords ? "Disable Highlights" : "Enable Highlights"}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      editedHighlightKeywords ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {editedHighlightKeywords && (
+                <div className="pt-2 border-t border-slate-200/80 space-y-2.5 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Select Highlight Accent Color</span>
+                    <span className="text-[9px] font-medium text-slate-400">
+                      Active: <strong className="text-slate-700 capitalize">{DEFAULT_HIGHLIGHT_COLORS.find(c => c.id === editedHighlightColor)?.name || editedHighlightColor || "Gold"}</strong>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-[190px] overflow-y-auto pr-1">
+                    {DEFAULT_HIGHLIGHT_COLORS.map((c) => {
+                      const isSelected = (editedHighlightColor || "gold") === c.id || (editedHighlightColor || "").toLowerCase() === c.colorHex.toLowerCase();
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            if (setEditedHighlightKeywords) setEditedHighlightKeywords(true);
+                            if (setEditedHighlightColor) setEditedHighlightColor(c.id);
+                          }}
+                          className={`py-1.5 px-1 rounded-xl border text-[10px] font-bold cursor-pointer transition-all flex flex-col items-center justify-center gap-1 ${
+                            isSelected
+                              ? "bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-900/20 scale-[1.03]"
+                              : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                          }`}
+                        >
+                          <span 
+                            className={`w-4 h-4 rounded-full border shadow-2xs transition-transform ${isSelected ? "scale-110 border-white ring-1 ring-slate-900" : "border-black/10"}`} 
+                            style={{ backgroundColor: c.colorHex }} 
+                          />
+                          <span className="truncate text-[9px] max-w-[52px] leading-tight">{c.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Font Weight & Alignment */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-800 block">Font Weight</label>
+                <button
+                  type="button"
+                  onClick={() => setEditedIsBold(!editedIsBold)}
+                  className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    editedIsBold
+                      ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                      : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="font-extrabold text-sm">B</span>
+                  <span>{editedIsBold ? "Bold" : "Normal"}</span>
+                </button>
+              </div>
+
+              {/* Text Alignment */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-800 block">Text Alignment</label>
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+                  <button
+                    type="button"
+                    onClick={() => handleMoveText("left")}
+                    className="flex-1 py-1 rounded-lg text-slate-700 hover:bg-white flex items-center justify-center cursor-pointer transition-all"
+                    title="Align Left"
+                  >
+                    <AlignLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMoveText("up")}
+                    className="flex-1 py-1 rounded-lg bg-white text-slate-900 shadow-2xs font-bold flex items-center justify-center cursor-pointer transition-all"
+                    title="Center Text"
+                  >
+                    <AlignCenter className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMoveText("right")}
+                    className="flex-1 py-1 rounded-lg text-slate-700 hover:bg-white flex items-center justify-center cursor-pointer transition-all"
+                    title="Align Right"
+                  >
+                    <AlignRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Size Controls */}
             <div className="space-y-1.5">
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                  Font Size ({convertTextSizeToPx(editedTextSize)}px)
-                </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800">Text Size</label>
                 <button
                   type="button"
                   onClick={handleAutoFitText}
-                  className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider flex items-center gap-0.5 cursor-pointer hover:underline transition-all active:scale-95 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100"
+                  className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
                 >
-                  <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
-                  Auto-Fit
+                  <Sparkles className="w-3 h-3" /> Auto Fit Size
                 </button>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleDecreaseTextSize}
-                  disabled={convertTextSizeToPx(editedTextSize) <= 18}
-                  className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 disabled:opacity-40 font-extrabold text-sm rounded-xl flex items-center justify-center cursor-pointer transition-all active:scale-[0.97]"
-                  title="Decrease Size (A−)"
+                  className="w-10 h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 flex items-center justify-center cursor-pointer active:scale-95 transition-all text-base"
                 >
-                  A−
+                  -
                 </button>
+                <span className="flex-1 text-center text-xs font-bold text-slate-800 bg-slate-100 py-2 rounded-xl">
+                  {editedTextSize.replace("text-", "").toUpperCase()}
+                </span>
                 <button
                   type="button"
                   onClick={handleIncreaseTextSize}
-                  disabled={convertTextSizeToPx(editedTextSize) >= 72}
-                  className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 disabled:opacity-40 font-extrabold text-sm rounded-xl flex items-center justify-center cursor-pointer transition-all active:scale-[0.97]"
-                  title="Increase Size (A+)"
+                  className="w-10 h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 flex items-center justify-center cursor-pointer active:scale-95 transition-all text-base"
                 >
-                  A+
+                  +
                 </button>
               </div>
             </div>
 
-            {/* Line Spacing (Line Height) Selection */}
-            <div className="space-y-1.5 pt-3.5 border-t border-slate-100">
-              <div className="flex justify-between items-center">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                  Line Spacing (Leading)
-                </label>
-                <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                  {editedLineSpacing.toFixed(2)}x
-                </span>
-              </div>
-              <input
-                type="range"
-                min="1.0"
-                max="3.5"
-                step="0.05"
-                value={editedLineSpacing}
-                onChange={(e) => setEditedLineSpacing(parseFloat(e.target.value))}
-                className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-              />
-              <span className="text-[8px] text-slate-400 block">Drag to adjust the gap between poetry lines.</span>
-            </div>
-
-            {/* Text Box Width Selection */}
-            <div className="space-y-1.5 pt-3.5 border-t border-slate-100">
-              <div className="flex justify-between items-center">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                  Text Box Width
-                </label>
-                <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                  {editedTextBoxWidth}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="40"
-                max="100"
-                step="1"
-                value={editedTextBoxWidth}
-                onChange={(e) => setEditedTextBoxWidth(parseInt(e.target.value))}
-                className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-              />
-              <span className="text-[8px] text-slate-400 block">Control the bounds and horizontal margin of the text area.</span>
-            </div>
-
-            {/* Text Box Height Selection */}
-            <div className="space-y-1.5 pt-3.5 border-t border-slate-100">
-              <div className="flex justify-between items-center">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                  Text Box Height (Container Height)
-                </label>
-                <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                  {editedTextBoxHeight}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="30"
-                max="100"
-                step="1"
-                value={editedTextBoxHeight}
-                onChange={(e) => setEditedTextBoxHeight(parseInt(e.target.value))}
-                className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-              />
-              <span className="text-[8px] text-slate-400 block">Control the vertical distribution height occupied by the poetry content.</span>
-            </div>
-
-            {/* Text Wrapping Mode Toggle */}
-            <div className="space-y-1.5 pt-3.5 border-t border-slate-100">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Text Wrapping Mode</label>
-              <div className="grid grid-cols-2 gap-2">
+            {/* Emoji Controls */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800">Emoji Ornament</label>
                 <button
                   type="button"
-                  onClick={() => setEditedTextWrapping("wrap")}
-                  className={`py-2 px-3 border rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    editedTextWrapping === "wrap"
-                      ? "bg-indigo-600 border-transparent text-white shadow-xs"
-                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                  }`}
+                  onClick={() => setCustomHideEmoji(!customHideEmoji)}
+                  className="text-[10px] font-bold text-slate-500 hover:text-slate-900 cursor-pointer"
                 >
-                  Wrap Text (Word-Wrap)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditedTextWrapping("nowrap")}
-                  className={`py-2 px-3 border rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    editedTextWrapping === "nowrap"
-                      ? "bg-indigo-600 border-transparent text-white shadow-xs"
-                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  No Wrap (Single Line)
+                  {customHideEmoji ? "Show Emoji" : "Hide Emoji"}
                 </button>
               </div>
-              <span className="text-[8px] text-slate-400 block">Toggle whether long verses wrap words onto new lines.</span>
-            </div>
-          </div>
-        )}
-
-        {activeTool === "color" && (
-          <div className="space-y-4 animate-fadeIn">
-            {/* Text Color Selection */}
-            <div className="space-y-1.5 bg-slate-50/50 p-3.5 rounded-2xl border border-slate-100">
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                  Text Color: <span className="text-indigo-600 font-extrabold normal-case">
-                    {premiumTextColors.find(item => item.value === editedTextColor)?.name || 
-                     gradientTextColors.find(item => item.value === editedTextColor)?.name || 
-                     "Custom"}
-                  </span>
-                </label>
-                <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded-full">
-                  {premiumTextColors.length} Solid Presets
-                </span>
-              </div>
-
-              {/* Quick Swatches Grid */}
-              <div className="grid grid-cols-8 gap-2 p-2 bg-white rounded-xl border border-slate-200/60 max-h-[110px] overflow-y-auto scrollbar-thin">
-                {premiumTextColors.map((color) => {
-                  const isActive = editedTextColor === color.value;
-                  return (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  maxLength={4}
+                  value={editedEmoji}
+                  onChange={(e) => setEditedEmoji(e.target.value)}
+                  className="w-14 text-center py-1.5 text-xs border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500"
+                  placeholder="✨"
+                />
+                <div className="flex gap-1 overflow-x-auto no-scrollbar flex-1">
+                  {["✨", "❤️", "🥀", "💔", "🤝", "😎", "😂", "🌹", "🕯️"].map((em) => (
                     <button
-                      key={`color-preset-${color.name}-${color.value}`}
+                      key={em}
                       type="button"
-                      onClick={() => {
-                        setEditedTextColor(color.value);
-                        showToast(`Text color: ${color.name} 🎨`);
-                      }}
-                      className={`aspect-square w-full rounded-full cursor-pointer transition-all hover:scale-115 flex items-center justify-center relative ${color.bgClass} ${
-                        isActive
-                          ? "ring-2 ring-indigo-500 ring-offset-2 scale-105 shadow-xs"
-                          : "hover:border-slate-300 border border-slate-200/60"
-                      }`}
-                      title={`${color.name} (${color.category})`}
-                    >
-                      {isActive && (
-                        <div className={`w-1.5 h-1.5 rounded-full ${
-                          color.value.includes("white") || 
-                          color.value.includes("50") || 
-                          color.value.includes("100") || 
-                          color.name === "Yellow" || 
-                          color.name === "Mint" || 
-                          color.name === "Silver" || 
-                          color.name === "Cream"
-                            ? "bg-slate-800"
-                            : "bg-white"
-                        }`} />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Gradient Text Color Selection */}
-            <div className="space-y-1.5 bg-slate-50/50 p-3.5 rounded-2xl border border-slate-100">
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                  Gradient Text Colors
-                </label>
-                <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded-full">
-                  {gradientTextColors.length} Gradient Presets
-                </span>
-              </div>
-
-              {/* Gradient Swatches Grid */}
-              <div className="grid grid-cols-8 gap-2 p-2 bg-white rounded-xl border border-slate-200/60 max-h-[110px] overflow-y-auto scrollbar-thin">
-                {gradientTextColors.map((color) => {
-                  const isActive = editedTextColor === color.value;
-                  return (
-                    <button
-                      key={`color-grad-${color.value}`}
-                      type="button"
-                      onClick={() => {
-                        setEditedTextColor(color.value);
-                        showToast(`Gradient text: ${color.name} ✨`);
-                      }}
-                      className={`aspect-square w-full rounded-full cursor-pointer transition-all hover:scale-115 flex items-center justify-center relative ${color.bgClass} ${
-                        isActive
-                          ? "ring-2 ring-indigo-500 ring-offset-2 scale-105 shadow-xs"
-                          : "hover:border-slate-300 border border-slate-200/60"
-                      }`}
-                      title={color.name}
-                    >
-                      {isActive && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Dropdown Selector */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Select Palette Preset</label>
-              <select
-                value={editedTextColor}
-                onChange={(e) => {
-                  setEditedTextColor(e.target.value);
-                  const matched = premiumTextColors.find(c => c.value === e.target.value) || gradientTextColors.find(c => c.value === e.target.value);
-                  if (matched) {
-                    showToast(`Selected: ${matched.name} 🎨`);
-                  }
-                }}
-                className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-bold text-slate-700 bg-white outline-none"
-              >
-                {Array.from(new Set(premiumTextColors.map(c => c.category))).map(category => (
-                  <optgroup label={`Solid - ${category}`} key={category}>
-                    {premiumTextColors.filter(c => c.category === category).map(color => (
-                      <option key={`opt-solid-${color.value}`} value={color.value}>
-                        {color.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-                <optgroup label="Premium Gradient Text Colors">
-                  {gradientTextColors.map(color => (
-                    <option key={`opt-grad-${color.value}`} value={color.value}>
-                      {color.name}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
-          </div>
-        )}
-
-        {activeTool === "effects" && (
-          <div className="space-y-4 animate-fadeIn">
-            {/* Visual Image Filter */}
-            {editedImage && (
-              <div className="space-y-1.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-indigo-500" />
-                  <span>Visual Image Filter</span>
-                </label>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
-                  {filterOptions.map((filter) => (
-                    <button
-                      key={`filter-eff-${filter.id}`}
-                      type="button"
-                      onClick={() => {
-                        setEditedImageFilter(filter.value);
-                        showToast(`${filter.name} filter applied!`);
-                      }}
-                      className={`px-1 py-1 text-[9px] font-bold rounded-lg border transition-all cursor-pointer text-center ${
-                        editedImageFilter === filter.value
-                          ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
-                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      onClick={() => setEditedEmoji(em)}
+                      className={`p-1.5 rounded-lg border text-xs cursor-pointer hover:bg-slate-100 transition-all shrink-0 ${
+                        editedEmoji === em ? "border-indigo-500 bg-indigo-50" : "border-slate-200"
                       }`}
                     >
-                      {filter.name}
+                      {em}
                     </button>
                   ))}
                 </div>
               </div>
-            )}
-
-            {/* Text Shadow Toggle */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Text Shadow</label>
-              <button
-                type="button"
-                onClick={() => setEditedTextShadow(!editedTextShadow)}
-                className={`w-full py-2.5 px-4 border rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-                  editedTextShadow
-                    ? "bg-indigo-600 border-transparent text-white shadow-sm"
-                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <Sparkles className={`w-3.5 h-3.5 ${editedTextShadow ? "text-amber-300 fill-amber-300" : "text-slate-400"}`} />
-                <span>{editedTextShadow ? "Soft Black Shadow: Enabled" : "Add Soft Black Shadow"}</span>
-              </button>
             </div>
+          </div>
+        )}
 
-            {/* Highlight Keywords Toggle */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Keyword Highlighting</label>
-              <button
-                type="button"
-                onClick={() => setEditedHighlightKeywords(!editedHighlightKeywords)}
-                className={`w-full py-2.5 px-4 border rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-                  editedHighlightKeywords
-                    ? "bg-indigo-600 border-transparent text-white shadow-sm"
-                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <Highlighter className={`w-3.5 h-3.5 ${editedHighlightKeywords ? "text-amber-300" : "text-slate-400"}`} />
-                <span>{editedHighlightKeywords ? "Poetic Keyword Highlight: Active ✨" : "Enable Poetic Keyword Highlighting"}</span>
-              </button>
-            </div>
-
-            {/* Highlight Color Picker */}
-            {editedHighlightKeywords && (
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Highlight Color</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {HIGHLIGHT_COLORS.map((c) => {
-                    const isSelected = editedHighlightColor === c.id;
+        {/* ================= 2. BACKGROUND ================= */}
+        {currentTool === "background" && (
+          <div className="space-y-3.5 animate-fadeIn">
+            {/* Loaded Card Style Images */}
+            {validCardStyles.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800 block">Card Background Images</label>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[150px] overflow-y-auto pr-1 no-scrollbar">
+                  {validCardStyles.map((styleUrl, idx) => {
+                    const isSelected = editedCardStyleBg === styleUrl;
                     return (
                       <button
-                        key={`highlight-c-${c.id}`}
+                        key={`card-style-${idx}`}
                         type="button"
-                        onClick={() => setEditedHighlightColor(c.id)}
-                        className={`p-2 rounded-xl border flex items-center gap-1.5 justify-start transition-all duration-200 hover:scale-[1.03] active:scale-95 text-[11px] font-bold ${
-                          isSelected
-                            ? "border-slate-800 bg-slate-900 text-white shadow-sm"
-                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        onClick={() => handleSelectCardStyle(styleUrl)}
+                        className={`relative h-16 rounded-xl overflow-hidden border-2 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs ${
+                          isSelected ? "border-indigo-600 ring-2 ring-indigo-200 scale-[1.02]" : "border-slate-200"
                         }`}
                       >
-                        <span className={`w-3 h-3 rounded-full shrink-0 ${c.bgClass} border border-black/10`} />
-                        <span className="truncate">{c.name}</span>
+                        <img
+                          src={styleUrl}
+                          alt={`Style ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={() => {
+                            setFailedCardStyles((prev) => new Set([...prev, styleUrl]));
+                          }}
+                        />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-indigo-900/30 flex items-center justify-center text-white">
+                            <Check className="w-4 h-4 stroke-[3]" />
+                          </div>
+                        )}
                       </button>
                     );
                   })}
                 </div>
               </div>
             )}
+
+            {/* Gradient Options */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-800 block">Gradients</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {PRESET_GRADIENTS.map((g) => {
+                  const isSelected = editedBgGradient === g.value;
+                  return (
+                    <button
+                      key={g.name}
+                      type="button"
+                      onClick={() => handleSelectGradient(g.value)}
+                      style={{ backgroundImage: g.value }}
+                      className={`h-10 rounded-xl border text-xs font-bold text-white flex items-center justify-center cursor-pointer shadow-2xs transition-all hover:scale-[1.02] ${
+                        isSelected ? "ring-2 ring-indigo-600 ring-offset-1 border-white" : "border-transparent"
+                      }`}
+                    >
+                      <span className="drop-shadow-xs text-[10px] font-bold">{g.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Solid Colors */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-800 block">Solid Colors</label>
+              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                {PRESET_SOLIDS.map((s) => {
+                  const isSelected = editedBgColor === s.value;
+                  return (
+                    <button
+                      key={s.name}
+                      type="button"
+                      onClick={() => handleSelectSolid(s.value)}
+                      style={{ backgroundColor: s.value }}
+                      className={`px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all shrink-0 shadow-2xs ${
+                        isSelected ? "ring-2 ring-indigo-600 ring-offset-1 border-slate-900" : "border-slate-200 text-slate-800"
+                      }`}
+                    >
+                      {s.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Background Opacity Slider */}
+            <div className="space-y-1 bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                <span>Background Opacity</span>
+                <span className="text-[#FF2D8D] font-extrabold">{Math.round((editedBgOpacity ?? 1) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round((editedBgOpacity ?? 1) * 100)}
+                onChange={(e) => {
+                  if (setEditedBgOpacity) {
+                    setEditedBgOpacity(Number(e.target.value) / 100);
+                  }
+                }}
+                className="w-full accent-[#FF2D8D] cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-500 block">Adjust opacity for card style images, uploaded photos, and gradient backgrounds</span>
+            </div>
+
+            {/* Reset Background button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (setEditedCardStyleBg) setEditedCardStyleBg("");
+                setEditedBgGradient("");
+                setEditedBgColor("");
+              }}
+              className="w-full py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset Background</span>
+            </button>
           </div>
         )}
 
-        {activeTool === "position" && (
-          <div className="space-y-4 animate-fadeIn">
-            {/* Text Repositioning */}
+        {/* ================= 3. LAYOUT ================= */}
+        {currentTool === "layout" && (
+          <div className="space-y-3.5 animate-fadeIn">
+            {/* Aspect Ratio Selector */}
             <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-[10px] font-black text-slate-455 uppercase tracking-widest block">Reposition Text</label>
+              <label className="text-xs font-bold text-slate-800 block">Aspect Ratio</label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { ratio: "9:16", label: "Story (9:16)" },
+                  { ratio: "1:1", label: "Square (1:1)" },
+                  { ratio: "4:5", label: "Post (4:5)" },
+                  { ratio: "16:9", label: "Banner (16:9)" },
+                ].map((r) => {
+                  const isSelected = editedRatio === r.ratio;
+                  return (
+                    <button
+                      key={r.ratio}
+                      type="button"
+                      onClick={() => setEditedRatio(r.ratio as any)}
+                      className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                        isSelected
+                          ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                          : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>{r.ratio}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Position Adjustment Pad */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800">Position Verse</label>
                 <button
                   type="button"
                   onClick={() => setTextPos({ x: 0, y: 0 })}
-                  className="text-[9px] font-black text-slate-500 hover:text-indigo-600 uppercase tracking-wider bg-slate-100 hover:bg-indigo-50 px-2 py-0.5 rounded border border-slate-200 transition-all active:scale-95 cursor-pointer"
+                  className="text-[10px] font-bold text-slate-500 hover:text-slate-900 cursor-pointer"
                 >
                   Reset Position
                 </button>
               </div>
-              
-              <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-2xl">
-                <div className="text-[10px] text-slate-500 max-w-[170px] leading-relaxed select-none">
-                  <p className="font-bold text-slate-700 mb-0.5">Micro-Positioning</p>
-                  <p className="text-[9px]">Tap arrows to offset the Shayari text inside the card.</p>
-                </div>
-                
-                {/* D-Pad Layout */}
-                <div className="flex flex-col items-center justify-center shrink-0">
-                  <div className="grid grid-cols-3 gap-1 w-28">
-                    <div />
-                    <button
-                      type="button"
-                      onClick={() => handleMoveText("up")}
-                      className="py-1.5 bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 hover:text-indigo-600 rounded-lg flex items-center justify-center cursor-pointer transition-all active:scale-95"
-                    >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <div />
-                    
-                    <button
-                      type="button"
-                      onClick={() => handleMoveText("left")}
-                      className="py-1.5 bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 hover:text-indigo-600 rounded-lg flex items-center justify-center cursor-pointer transition-all active:scale-95"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <div className="flex flex-col items-center justify-center text-[8px] font-mono font-black text-slate-400">
-                      <span>{textPos.x}</span>
-                      <span>{textPos.y}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveText("right")}
-                      className="py-1.5 bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 hover:text-indigo-600 rounded-lg flex items-center justify-center cursor-pointer transition-all active:scale-95"
-                    >
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                    
-                    <div />
-                    <button
-                      type="button"
-                      onClick={() => handleMoveText("down")}
-                      className="py-1.5 bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 hover:text-indigo-600 rounded-lg flex items-center justify-center cursor-pointer transition-all active:scale-95"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
-                    <div />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Image Repositioning Fine-Tuning */}
-            {editedImage && (
-              <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-black text-slate-455 uppercase tracking-widest flex items-center gap-1">
-                    <Move className="w-3 h-3 text-indigo-500" />
-                    <span>Reposition Image</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setImagePos({ x: 0, y: 0 })}
-                    className="text-[9px] font-black text-slate-500 hover:text-indigo-600 uppercase tracking-wider bg-slate-100 hover:bg-indigo-50 px-2 py-0.5 rounded border border-slate-200 transition-all active:scale-95 cursor-pointer"
-                  >
-                    Reset Image
-                  </button>
-                </div>
-                <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-2xl">
-                  <div className="text-[10px] text-slate-400 max-w-[150px] leading-relaxed select-none">
-                    <p className="font-bold text-slate-700 mb-0.5">Image Offsets</p>
-                    <p className="text-[8px]">Drag image directly on the live card or fine-tune here.</p>
-                    <div className="font-mono bg-slate-150 px-1.5 py-0.5 rounded text-[8px] text-slate-500 inline-block mt-1">
-                      X: {imagePos.x}px | Y: {imagePos.y}px
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-1 w-24 h-24 bg-white p-1 rounded-xl border border-slate-150">
-                    <div />
-                    <button
-                      type="button"
-                      onClick={() => setImagePos((prev) => ({ ...prev, y: prev.y - 5 }))}
-                      className="flex items-center justify-center p-1 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded border border-slate-200 active:scale-90 transition-all cursor-pointer"
-                    >
-                      ▲
-                    </button>
-                    <div />
-                    
-                    <button
-                      type="button"
-                      onClick={() => setImagePos((prev) => ({ ...prev, x: prev.x - 5 }))}
-                      className="flex items-center justify-center p-1 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded border border-slate-200 active:scale-90 transition-all cursor-pointer"
-                    >
-                      ◀
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setImagePos({ x: 0, y: 0 })}
-                      className="flex items-center justify-center p-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded border border-indigo-150 active:scale-90 transition-all cursor-pointer text-[8px] font-bold"
-                    >
-                      Reset
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setImagePos((prev) => ({ ...prev, x: prev.x + 5 }))}
-                      className="flex items-center justify-center p-1 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded border border-slate-200 active:scale-90 transition-all cursor-pointer"
-                    >
-                      ▶
-                    </button>
-                    
-                    <div />
-                    <button
-                      type="button"
-                      onClick={() => setImagePos((prev) => ({ ...prev, y: prev.y + 5 }))}
-                      className="flex items-center justify-center p-1 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded border border-slate-200 active:scale-90 transition-all cursor-pointer"
-                    >
-                      ▼
-                    </button>
-                    <div />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTool === "image" && (
-          <div className="space-y-4 animate-fadeIn">
-            <label className="text-[10px] font-black text-slate-450 uppercase tracking-widest block">Upload Custom Image Decorator</label>
-            <div className="flex gap-2 items-center">
-              <div className="relative flex-1">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  id="modal-image-uploader-tool"
-                  className="hidden"
-                />
-                <label
-                  htmlFor="modal-image-uploader-tool"
-                  className="flex items-center justify-center gap-1.5 px-4 py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:text-indigo-600 hover:border-indigo-500 cursor-pointer bg-slate-50/50 hover:bg-indigo-50/20 transition-all"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Upload Custom Image</span>
-                </label>
-              </div>
-
-              {editedImage && (
+              <div className="flex items-center justify-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditedImage(null);
-                    setImagePos({ x: 0, y: 0 });
-                    showToast("Image removed!");
-                  }}
-                  className="px-3 py-2 border border-red-200 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 cursor-pointer transition-all"
+                  onClick={() => handleMoveText("left")}
+                  className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 active:scale-95 transition-all cursor-pointer"
+                  title="Move Left"
                 >
-                  Clear Image
+                  <ArrowLeft className="w-4 h-4" />
                 </button>
-              )}
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleMoveText("up")}
+                    className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 active:scale-95 transition-all cursor-pointer"
+                    title="Move Up"
+                  >
+                    <ArrowUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMoveText("down")}
+                    className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 active:scale-95 transition-all cursor-pointer"
+                    title="Move Down"
+                  >
+                    <ArrowDown className="w-4 h-4" />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleMoveText("right")}
+                  className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 active:scale-95 transition-all cursor-pointer"
+                  title="Move Right"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
+            {/* Sliders: Card Padding / Width & Line Spacing */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                  <span>Card Padding / Width</span>
+                  <span>{editedTextBoxWidth}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={70}
+                  max={100}
+                  value={editedTextBoxWidth}
+                  onChange={(e) => setEditedTextBoxWidth(Number(e.target.value))}
+                  className="w-full accent-indigo-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                  <span>Line Spacing</span>
+                  <span>{editedLineSpacing.toFixed(1)}</span>
+                </div>
+                <input
+                  type="range"
+                  min={1.2}
+                  max={2.8}
+                  step={0.1}
+                  value={editedLineSpacing}
+                  onChange={(e) => setEditedLineSpacing(Number(e.target.value))}
+                  className="w-full accent-indigo-600 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Text Shadow Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 bg-slate-50/70">
+              <div>
+                <span className="text-xs font-bold text-slate-800 block">Text Drop Shadow</span>
+                <span className="text-[10px] text-slate-500">Adds soft contrast shadow behind verse</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditedTextShadow(!editedTextShadow)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  editedTextShadow ? "bg-indigo-600" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    editedTextShadow ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================= 4. IMAGE ================= */}
+        {currentTool === "image" && (
+          <div className="space-y-3.5 animate-fadeIn">
+            {/* Prominent Upload Button */}
+            <label className="w-full py-3.5 px-4 rounded-2xl border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/50 hover:bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-2xs">
+              <Upload className="w-4 h-4 text-indigo-600" />
+              <span>{editedImage ? "Replace Card Photo" : "Upload Custom Image"}</span>
+              <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+            </label>
+
             {editedImage && (
-              <div className="space-y-4 mt-2">
-                {/* Image Placement Mode */}
-                <div className="space-y-1.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Image Placement Mode</label>
-                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
-                    {[
-                      { id: "small", label: "Small" },
-                      { id: "fit", label: "Fit" },
-                      { id: "fill", label: "Fill" },
-                      { id: "contain", label: "Contain" },
-                      { id: "cover", label: "Cover" },
-                    ].map((mode) => (
+              <div className="space-y-3 bg-slate-50 p-3 rounded-2xl border border-slate-200/60">
+                {/* Photo Header & Remove Action */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">Uploaded Photo Controls</span>
+                  <button
+                    type="button"
+                    onClick={() => setEditedImage(null)}
+                    className="text-xs font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Remove
+                  </button>
+                </div>
+
+                {/* Photo Fit Mode */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600 block">Image Display Mode</label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(["small", "contain", "cover", "fill"] as const).map((mode) => (
                       <button
-                        key={`img-mode-${mode.id}`}
+                        key={mode}
                         type="button"
-                        onClick={() => setEditedImageMode(mode.id as any)}
-                        className={`px-1 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer text-center ${
-                          editedImageMode === mode.id
-                            ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
-                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        onClick={() => setEditedImageMode(mode)}
+                        className={`py-1.5 rounded-xl text-[11px] font-bold capitalize transition-all border cursor-pointer ${
+                          editedImageMode === mode
+                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
                         }`}
                       >
-                        {mode.label}
+                        {mode}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Scale / Zoom Control */}
-                <div className="space-y-1.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                      <ZoomIn className="w-3 h-3 text-indigo-500" />
-                      <span>Scale / Zoom</span>
-                    </label>
-                    <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                      {Math.round(editedImageScale * 100)}%
-                    </span>
+                {/* Photo Scale Slider */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span>Photo Scale</span>
+                    <span>{Math.round(editedImageScale * 100)}%</span>
                   </div>
-                  <div className="flex gap-2 items-center">
-                    <button
-                      type="button"
-                      onClick={() => setEditedImageScale(Math.max(0.1, Number((editedImageScale - 0.1).toFixed(2))))}
-                      className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer active:scale-95 transition-all text-xs font-bold"
-                    >
-                      <ZoomOut className="w-3.5 h-3.5" />
-                    </button>
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="4"
-                      step="0.05"
-                      value={editedImageScale}
-                      onChange={(e) => setEditedImageScale(parseFloat(e.target.value))}
-                      className="flex-1 accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setEditedImageScale(Math.min(4, Number((editedImageScale + 0.1).toFixed(2))))}
-                      className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer active:scale-95 transition-all text-xs font-bold"
-                    >
-                      <ZoomIn className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="flex gap-1 flex-wrap pt-1">
-                    {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0].map((preset) => (
-                      <button
-                        key={`scale-preset-${preset}`}
-                        type="button"
-                        onClick={() => setEditedImageScale(preset)}
-                        className={`px-1.5 py-0.5 text-[9px] font-mono font-bold rounded border cursor-pointer transition-all ${
-                          Math.abs(editedImageScale - preset) < 0.01
-                            ? "bg-indigo-50 border-indigo-200 text-indigo-600"
-                            : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-                        }`}
-                      >
-                        {preset}x
-                      </button>
-                    ))}
-                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={2.0}
+                    step={0.05}
+                    value={editedImageScale}
+                    onChange={(e) => setEditedImageScale(Number(e.target.value))}
+                    className="w-full accent-indigo-600 cursor-pointer"
+                  />
                 </div>
 
-                {/* Rotation Control */}
-                <div className="space-y-1.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                      <RotateCw className="w-3 h-3 text-indigo-500" />
-                      <span>Rotation Angle</span>
-                    </label>
-                    <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                      {editedImageRotate}°
-                    </span>
+                {/* Photo Filter Presets */}
+                {filterOptions.length > 0 && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 block">Photo Filter</label>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                      {filterOptions.map((f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => setEditedImageFilter(f.value)}
+                          className={`px-2.5 py-1 rounded-xl text-[11px] font-bold shrink-0 border cursor-pointer ${
+                            editedImageFilter === f.value
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {f.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex gap-2 items-center">
-                    <button
-                      type="button"
-                      onClick={() => setEditedImageRotate((editedImageRotate - 15 + 360) % 360)}
-                      className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer active:scale-95 transition-all text-xs font-bold"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="360"
-                      step="1"
-                      value={editedImageRotate}
-                      onChange={(e) => setEditedImageRotate(parseInt(e.target.value))}
-                      className="flex-1 accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setEditedImageRotate((editedImageRotate + 15) % 360)}
-                      className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer active:scale-95 transition-all text-xs font-bold"
-                    >
-                      <RotateCw className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
         )}
-      </div>
-
-      {/* Persistent Horizontal Toolbar - Always visible, never scrollable away */}
-      <div className="w-full bg-slate-50 dark:bg-slate-900 border-t border-slate-150 dark:border-slate-800 py-3 px-4 shrink-0 flex gap-2 items-center overflow-x-auto scrollbar-none sticky bottom-0 z-30 shadow-2xs">
-        {[
-          { id: "verse", label: "Verse", icon: Edit3 },
-          { id: "ratio", label: "Ratio", icon: Layout },
-          { id: "background", label: "Background", icon: Palette },
-          { id: "font", label: "Font", icon: Type },
-          { id: "size", label: "Size", icon: Ruler },
-          { id: "color", label: "Color", icon: Paintbrush },
-          { id: "effects", label: "Effects", icon: Sparkles },
-          { id: "position", label: "Position", icon: Move },
-          { id: "image", label: "Image", icon: ImageIcon }
-        ].map((tool) => {
-          const isActive = activeTool === tool.id;
-          const IconComp = tool.icon;
-          return (
-            <button
-              key={tool.id}
-              type="button"
-              onClick={() => {
-                setActiveTool(tool.id);
-                showToast(`${tool.label} tool opened!`);
-              }}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                isActive
-                  ? "bg-indigo-600 text-white shadow-md scale-105"
-                  : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-              }`}
-              title={tool.label}
-            >
-              <IconComp className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-indigo-500"}`} />
-              <span>{tool.label}</span>
-            </button>
-          );
-        })}
       </div>
     </div>
   );

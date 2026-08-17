@@ -40,16 +40,30 @@ import {
   Paintbrush,
   Edit3,
   Film,
-  Loader2
+  Loader2,
+  SlidersHorizontal,
+  Menu
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { motion, AnimatePresence } from "motion/react";
 import { Shayari } from "./types";
 import { PoetryCardEditorControls } from "./components/PoetryCardEditorControls";
 import { PoetryMoveResizeWrapper } from "./components/PoetryMoveResizeWrapper";
+import { EditShayariBottomSheet } from "./components/EditShayariBottomSheet";
 import { RateLimitDialog } from "./components/RateLimitDialog";
-import { convertTailwindGradientToCss, solidsMap } from "./backgroundUtils";
+import { convertTailwindGradientToCss, solidsMap, resolveTailwindColor } from "./backgroundUtils";
 import { DEFAULT_CARD_STYLES, DEFAULT_CATEGORY_CARD_STYLES } from "./data/defaultCardStyles";
+import { getShayariTitle, DEFAULT_SHAYARIS } from "./data";
+import { ShayariCardTitle } from "./components/ShayariCardTitle";
+import { 
+  HIGHLIGHT_COLORS, 
+  resolveHighlightHex, 
+  getIntelligentHighlights, 
+  segmentPoetryLinesForHighlighting,
+  segmentLineForHighlighting, 
+  getMoodDefaultAccentColor,
+  HighlightPhrase 
+} from "./utils/highlightUtils";
 // @ts-ignore
 import appLogo from "./assets/images/app_icon_512_1782467463512.jpg";
 
@@ -98,196 +112,196 @@ const THEMES: ThemeConfig[] = [
     id: "purple",
     name: "Royal Velvet",
     colorClass: "bg-purple-600",
-    bgGrad: "from-purple-50/70 via-slate-50 to-purple-100/40",
-    headerBorder: "border-purple-200/40",
-    iconBg: "bg-purple-50/80 border-purple-100/60",
+    bgGrad: "bg-white",
+    headerBorder: "border-[#F1F5F9]",
+    iconBg: "bg-purple-50 border-purple-100",
     iconColor: "text-purple-600",
     titleSpan: "text-purple-700",
-    cardShadow: "shadow-[0_24px_60px_-15px_rgba(147,51,234,0.12)]",
-    cardBorderHover: "hover:border-purple-350/80 hover:shadow-md",
+    cardShadow: "shadow-[0_16px_36px_rgba(0,0,0,0.20),0_5px_14px_rgba(0,0,0,0.12)]",
+    cardBorderHover: "hover:border-purple-300 hover:shadow-[0_20px_42px_rgba(0,0,0,0.24),0_8px_18px_rgba(0,0,0,0.14)]",
     inputFocus: "focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 focus:bg-white",
     buttonGrad: "from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700",
     spinnerBorder: "border-purple-600/20 border-t-purple-600",
     spinnerIcon: "text-purple-600",
-    tagAi: "text-purple-700 bg-purple-50/70 border-purple-100/80",
-    tagClassic: "text-slate-700 bg-slate-50 border-slate-200/60",
+    tagAi: "text-purple-700 bg-purple-50 border-purple-100",
+    tagClassic: "text-slate-700 bg-slate-50 border-slate-200",
     separatorDot: "text-purple-600",
-    separatorLine: "bg-purple-900/10",
-    poetTag: "text-purple-800 bg-purple-50/60 border-purple-100/50",
+    separatorLine: "bg-purple-100",
+    poetTag: "text-purple-800 bg-purple-50 border-purple-100",
     poetBold: "text-purple-900",
-    cardDecoration: "text-purple-50/40 group-hover:text-purple-100/45",
-    toastBg: "bg-purple-950/95 border-purple-900",
-    accentGlow: "bg-purple-500/10",
-    headerBg: "bg-purple-50/85",
-    navBg: "bg-purple-50/95",
-    navBorder: "border-purple-200/40",
+    cardDecoration: "text-purple-100/50 group-hover:text-purple-200/50",
+    toastBg: "bg-slate-900 border-slate-800",
+    accentGlow: "bg-purple-500/5",
+    headerBg: "bg-white",
+    navBg: "bg-white",
+    navBorder: "border-[#F1F5F9]",
     activeTabBg: "bg-purple-100/80 text-purple-700",
-    cardBg: "bg-purple-50/50",
-    cardBorder: "border-purple-200/60",
-    formCardBg: "bg-purple-50/65",
-    subCardBg: "bg-purple-100/30",
+    cardBg: "bg-white",
+    cardBorder: "border-[#F1F5F9]",
+    formCardBg: "bg-white",
+    subCardBg: "bg-[#F8FAFC]",
     borderAccent: "border-purple-500",
-    textColor: "text-purple-950",
-    tagMood: "text-purple-700 bg-purple-50/80 border-purple-100/80",
-    outerBg: "bg-[#0f091a]",
-    glowColors: ["bg-purple-500/10", "bg-indigo-500/10"],
-    chassisBorder: "border-purple-950"
+    textColor: "text-[#111827]",
+    tagMood: "text-purple-700 bg-purple-50 border-purple-100",
+    outerBg: "bg-white",
+    glowColors: ["bg-purple-500/5", "bg-indigo-500/5"],
+    chassisBorder: "border-[#F1F5F9]"
   },
   {
     id: "pink",
     name: "Rose Petal",
     colorClass: "bg-[#FF2E88]",
-    bgGrad: "from-[#FFF8FC] via-white to-[#FFF1F8]",
-    headerBorder: "border-pink-200/40",
-    iconBg: "bg-pink-50/80 border-pink-100/60",
+    bgGrad: "bg-white",
+    headerBorder: "border-[#F1F5F9]",
+    iconBg: "bg-pink-50 border-pink-100",
     iconColor: "text-[#FF2E88]",
     titleSpan: "text-[#FF2E88]",
-    cardShadow: "shadow-[0_12px_32px_rgba(255,46,136,0.12)]",
-    cardBorderHover: "hover:border-[#FF2E88]/60 hover:shadow-md",
+    cardShadow: "shadow-[0_16px_36px_rgba(0,0,0,0.20),0_5px_14px_rgba(0,0,0,0.12)]",
+    cardBorderHover: "hover:border-[#FF2E88]/60 hover:shadow-[0_20px_42px_rgba(0,0,0,0.24),0_8px_18px_rgba(0,0,0,0.14)]",
     inputFocus: "focus:border-[#FF2E88] focus:ring-4 focus:ring-[#FF2E88]/15 focus:bg-white",
     buttonGrad: "from-[#FF2E88] to-[#7B2FF7] hover:from-[#e00d6c] hover:to-[#6924d6]",
     spinnerBorder: "border-[#FF2E88]/20 border-t-[#FF2E88]",
     spinnerIcon: "text-[#FF2E88]",
-    tagAi: "text-[#FF2E88] bg-pink-50/80 border-pink-100/80",
-    tagClassic: "text-slate-700 bg-slate-50 border-slate-200/60",
+    tagAi: "text-[#FF2E88] bg-pink-50 border-pink-100",
+    tagClassic: "text-slate-700 bg-slate-50 border-slate-200",
     separatorDot: "text-[#FF2E88]",
-    separatorLine: "bg-pink-900/10",
-    poetTag: "text-pink-800 bg-pink-50/60 border-pink-100/50",
+    separatorLine: "bg-pink-100",
+    poetTag: "text-pink-800 bg-pink-50 border-pink-100",
     poetBold: "text-pink-900",
-    cardDecoration: "text-pink-50/40 group-hover:text-pink-100/45",
-    toastBg: "bg-slate-950/95 border-[#FF2E88]/40",
-    accentGlow: "bg-[#FF2E88]/10",
-    headerBg: "bg-pink-50/85",
-    navBg: "bg-pink-50/95",
-    navBorder: "border-pink-200/40",
+    cardDecoration: "text-pink-100/50 group-hover:text-pink-200/50",
+    toastBg: "bg-slate-900 border-slate-800",
+    accentGlow: "bg-[#FF2E88]/5",
+    headerBg: "bg-white",
+    navBg: "bg-white",
+    navBorder: "border-[#F1F5F9]",
     activeTabBg: "bg-pink-100/80 text-[#FF2E88]",
-    cardBg: "bg-white/80 backdrop-blur-md",
-    cardBorder: "border-pink-100/80 dark:border-slate-800/80",
-    formCardBg: "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md",
-    subCardBg: "bg-pink-50/40",
+    cardBg: "bg-white",
+    cardBorder: "border-[#F1F5F9]",
+    formCardBg: "bg-white",
+    subCardBg: "bg-[#F8FAFC]",
     borderAccent: "border-[#FF2E88]",
-    textColor: "text-slate-900 dark:text-slate-100",
-    tagMood: "text-[#FF2E88] bg-pink-50/80 border-pink-100/80",
-    outerBg: "bg-[#1a0810]",
-    glowColors: ["bg-[#FF2E88]/10", "bg-[#7B2FF7]/10"],
-    chassisBorder: "border-pink-950"
+    textColor: "text-[#111827]",
+    tagMood: "text-[#FF2E88] bg-pink-50 border-pink-100",
+    outerBg: "bg-white",
+    glowColors: ["bg-[#FF2E88]/5", "bg-[#7B2FF7]/5"],
+    chassisBorder: "border-[#F1F5F9]"
   },
   {
     id: "blue",
     name: "Ocean Breeze",
     colorClass: "bg-blue-600",
-    bgGrad: "from-blue-50/70 via-slate-50 to-blue-100/40",
-    headerBorder: "border-blue-200/40",
-    iconBg: "bg-blue-50/80 border-blue-100/60",
+    bgGrad: "bg-white",
+    headerBorder: "border-[#F1F5F9]",
+    iconBg: "bg-blue-50 border-blue-100",
     iconColor: "text-blue-600",
     titleSpan: "text-blue-700",
-    cardShadow: "shadow-[0_24px_60px_-15px_rgba(37,99,235,0.12)]",
-    cardBorderHover: "hover:border-blue-350/80 hover:shadow-md",
+    cardShadow: "shadow-[0_16px_36px_rgba(0,0,0,0.20),0_5px_14px_rgba(0,0,0,0.12)]",
+    cardBorderHover: "hover:border-blue-350/80 hover:shadow-[0_20px_42px_rgba(0,0,0,0.24),0_8px_18px_rgba(0,0,0,0.14)]",
     inputFocus: "focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white",
     buttonGrad: "from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700",
     spinnerBorder: "border-blue-600/20 border-t-blue-600",
     spinnerIcon: "text-blue-600",
-    tagAi: "text-blue-700 bg-blue-50/70 border-blue-100/80",
-    tagClassic: "text-slate-700 bg-slate-50 border-slate-200/60",
+    tagAi: "text-blue-700 bg-blue-50 border-blue-100",
+    tagClassic: "text-slate-700 bg-slate-50 border-slate-200",
     separatorDot: "text-blue-600",
-    separatorLine: "bg-blue-900/10",
-    poetTag: "text-blue-800 bg-blue-50/60 border-blue-100/50",
+    separatorLine: "bg-blue-100",
+    poetTag: "text-blue-800 bg-blue-50 border-blue-100",
     poetBold: "text-blue-900",
-    cardDecoration: "text-blue-50/40 group-hover:text-blue-100/45",
-    toastBg: "bg-blue-950/95 border-blue-900",
-    accentGlow: "bg-blue-500/10",
-    headerBg: "bg-blue-50/85",
-    navBg: "bg-blue-50/95",
-    navBorder: "border-blue-200/40",
+    cardDecoration: "text-blue-100/50 group-hover:text-blue-200/50",
+    toastBg: "bg-slate-900 border-slate-800",
+    accentGlow: "bg-blue-500/5",
+    headerBg: "bg-white",
+    navBg: "bg-white",
+    navBorder: "border-[#F1F5F9]",
     activeTabBg: "bg-blue-100/80 text-blue-700",
-    cardBg: "bg-blue-50/50",
-    cardBorder: "border-blue-200/60",
-    formCardBg: "bg-blue-50/65",
-    subCardBg: "bg-blue-100/30",
+    cardBg: "bg-white",
+    cardBorder: "border-[#F1F5F9]",
+    formCardBg: "bg-white",
+    subCardBg: "bg-[#F8FAFC]",
     borderAccent: "border-blue-500",
-    textColor: "text-blue-950",
-    tagMood: "text-blue-700 bg-blue-50/80 border-blue-100/80",
-    outerBg: "bg-[#050e1e]",
-    glowColors: ["bg-blue-500/10", "bg-sky-500/10"],
-    chassisBorder: "border-[#0a1424]"
+    textColor: "text-[#111827]",
+    tagMood: "text-blue-700 bg-blue-50 border-blue-100",
+    outerBg: "bg-white",
+    glowColors: ["bg-blue-500/5", "bg-sky-500/5"],
+    chassisBorder: "border-[#F1F5F9]"
   },
   {
     id: "green",
     name: "Mint Meadow",
     colorClass: "bg-emerald-600",
-    bgGrad: "from-emerald-50/70 via-slate-50 to-emerald-100/40",
-    headerBorder: "border-emerald-200/40",
-    iconBg: "bg-emerald-50/80 border-emerald-100/60",
+    bgGrad: "bg-white",
+    headerBorder: "border-[#F1F5F9]",
+    iconBg: "bg-emerald-50 border-emerald-100",
     iconColor: "text-emerald-600",
     titleSpan: "text-emerald-700",
-    cardShadow: "shadow-[0_24px_60px_-15px_rgba(16,185,129,0.12)]",
-    cardBorderHover: "hover:border-emerald-350/80 hover:shadow-md",
+    cardShadow: "shadow-[0_16px_36px_rgba(0,0,0,0.20),0_5px_14px_rgba(0,0,0,0.12)]",
+    cardBorderHover: "hover:border-emerald-350/80 hover:shadow-[0_20px_42px_rgba(0,0,0,0.24),0_8px_18px_rgba(0,0,0,0.14)]",
     inputFocus: "focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white",
     buttonGrad: "from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700",
     spinnerBorder: "border-emerald-600/20 border-t-emerald-600",
     spinnerIcon: "text-emerald-600",
-    tagAi: "text-emerald-700 bg-emerald-50/70 border-emerald-100/80",
-    tagClassic: "text-slate-700 bg-slate-50 border-slate-200/60",
+    tagAi: "text-emerald-700 bg-emerald-50 border-emerald-100",
+    tagClassic: "text-slate-700 bg-slate-50 border-slate-200",
     separatorDot: "text-emerald-600",
-    separatorLine: "bg-emerald-900/10",
-    poetTag: "text-emerald-800 bg-emerald-50/60 border-emerald-100/50",
+    separatorLine: "bg-emerald-100",
+    poetTag: "text-emerald-800 bg-emerald-50 border-emerald-100",
     poetBold: "text-emerald-900",
-    cardDecoration: "text-emerald-50/40 group-hover:text-emerald-100/45",
-    toastBg: "bg-emerald-950/95 border-emerald-900",
-    accentGlow: "bg-emerald-500/10",
-    headerBg: "bg-emerald-50/85",
-    navBg: "bg-emerald-50/95",
-    navBorder: "border-emerald-200/40",
+    cardDecoration: "text-emerald-100/50 group-hover:text-emerald-200/50",
+    toastBg: "bg-slate-900 border-slate-800",
+    accentGlow: "bg-emerald-500/5",
+    headerBg: "bg-white",
+    navBg: "bg-white",
+    navBorder: "border-[#F1F5F9]",
     activeTabBg: "bg-emerald-100/80 text-emerald-700",
-    cardBg: "bg-emerald-50/50",
-    cardBorder: "border-emerald-200/60",
-    formCardBg: "bg-emerald-50/65",
-    subCardBg: "bg-emerald-100/30",
+    cardBg: "bg-white",
+    cardBorder: "border-[#F1F5F9]",
+    formCardBg: "bg-white",
+    subCardBg: "bg-[#F8FAFC]",
     borderAccent: "border-emerald-500",
-    textColor: "text-emerald-950",
-    tagMood: "text-emerald-700 bg-emerald-50/80 border-emerald-100/80",
-    outerBg: "bg-[#04120a]",
-    glowColors: ["bg-emerald-500/10", "bg-teal-500/10"],
-    chassisBorder: "border-[#06180d]"
+    textColor: "text-[#111827]",
+    tagMood: "text-emerald-700 bg-emerald-50 border-emerald-100",
+    outerBg: "bg-white",
+    glowColors: ["bg-emerald-500/5", "bg-teal-500/5"],
+    chassisBorder: "border-[#F1F5F9]"
   },
   {
     id: "orange",
     name: "Sunset Glow",
     colorClass: "bg-amber-600",
-    bgGrad: "from-amber-50/70 via-slate-50 to-amber-100/40",
-    headerBorder: "border-amber-200/40",
-    iconBg: "bg-amber-50/80 border-amber-100/60",
+    bgGrad: "bg-white",
+    headerBorder: "border-[#F1F5F9]",
+    iconBg: "bg-amber-50 border-amber-100",
     iconColor: "text-amber-600",
     titleSpan: "text-amber-700",
-    cardShadow: "shadow-[0_24px_60px_-15px_rgba(245,158,11,0.12)]",
-    cardBorderHover: "hover:border-amber-350/80 hover:shadow-md",
+    cardShadow: "shadow-[0_16px_36px_rgba(0,0,0,0.20),0_5px_14px_rgba(0,0,0,0.12)]",
+    cardBorderHover: "hover:border-amber-350/80 hover:shadow-[0_20px_42px_rgba(0,0,0,0.24),0_8px_18px_rgba(0,0,0,0.14)]",
     inputFocus: "focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 focus:bg-white",
     buttonGrad: "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600",
     spinnerBorder: "border-amber-600/20 border-t-amber-600",
     spinnerIcon: "text-amber-600",
-    tagAi: "text-indigo-700 bg-indigo-50/70 border-indigo-100/80",
-    tagClassic: "text-amber-800 bg-amber-50/70 border-amber-100/80",
+    tagAi: "text-indigo-700 bg-indigo-50 border-indigo-100",
+    tagClassic: "text-amber-800 bg-amber-50 border-amber-100",
     separatorDot: "text-amber-600",
-    separatorLine: "bg-amber-900/10",
-    poetTag: "text-amber-800 bg-amber-50/60 border-amber-100/50",
+    separatorLine: "bg-amber-100",
+    poetTag: "text-amber-800 bg-amber-50 border-amber-100",
     poetBold: "text-amber-900",
-    cardDecoration: "text-amber-50/40 group-hover:text-amber-100/45",
-    toastBg: "bg-amber-950/95 border-amber-900",
-    accentGlow: "bg-amber-500/10",
-    headerBg: "bg-amber-50/85",
-    navBg: "bg-amber-50/95",
-    navBorder: "border-amber-200/45",
+    cardDecoration: "text-amber-100/50 group-hover:text-amber-200/50",
+    toastBg: "bg-slate-900 border-slate-800",
+    accentGlow: "bg-amber-500/5",
+    headerBg: "bg-white",
+    navBg: "bg-white",
+    navBorder: "border-[#F1F5F9]",
     activeTabBg: "bg-amber-100/80 text-amber-800",
-    cardBg: "bg-amber-50/45",
-    cardBorder: "border-amber-200/55",
-    formCardBg: "bg-amber-50/65",
-    subCardBg: "bg-amber-100/35",
+    cardBg: "bg-white",
+    cardBorder: "border-[#F1F5F9]",
+    formCardBg: "bg-white",
+    subCardBg: "bg-[#F8FAFC]",
     borderAccent: "border-amber-500",
-    textColor: "text-amber-950",
-    tagMood: "text-amber-800 bg-amber-50/80 border-amber-150/80",
-    outerBg: "bg-[#170e04]",
-    glowColors: ["bg-amber-500/10", "bg-orange-500/10"],
-    chassisBorder: "border-[#1f1307]"
+    textColor: "text-[#111827]",
+    tagMood: "text-amber-800 bg-amber-50 border-amber-150",
+    outerBg: "bg-white",
+    glowColors: ["bg-amber-500/5", "bg-orange-500/5"],
+    chassisBorder: "border-[#F1F5F9]"
   }
 ];
 
@@ -410,16 +424,17 @@ const POET_LEGENDS: PoetLegend[] = [
   }
 ];
 
-function getMoodEmoji(mood: string): string {
-  const m = (mood || "").toLowerCase().trim();
-  if (m.includes("sad") || m.includes("grief") || m.includes("row")) return "😢";
-  if (m.includes("love") || m.includes("romance") || m.includes("romantic") || m.includes("pyar") || m.includes("pyaar") || m.includes("ishq")) return "❤️";
-  if (m.includes("happy") || m.includes("joy") || m.includes("smile") || m.includes("khush")) return "😊";
-  if (m.includes("motivation") || m.includes("motivational") || m.includes("success") || m.includes("inspire") || m.includes("power") || m.includes("himmat")) return "💪";
-  if (m.includes("lonely") || m.includes("alone") || m.includes("breakup") || m.includes("broken") || m.includes("tanhai") || m.includes("hurt") || m.includes("pain") || m.includes("dard")) return "💔";
-  if (m.includes("friend") || m.includes("friendship") || m.includes("dost") || m.includes("yaari") || m.includes("yaar")) return "🤝";
-  if (m.includes("attitude") || m.includes("style") || m.includes("swag") || m.includes("king") || m.includes("tevar") || m.includes("ghuroor")) return "😎";
-  if (m.includes("funny") || m.includes("laugh") || m.includes("comedy") || m.includes("joke") || m.includes("masti")) return "😂";
+function getMoodEmoji(mood: string, sher: string = ""): string {
+  const combined = (mood + " " + sher).toLowerCase().trim();
+  if (combined.includes("rain") || combined.includes("barish") || combined.includes("baarish") || combined.includes("monsoon") || combined.includes("badal")) return "🌧️";
+  if (combined.includes("sad") || combined.includes("grief") || combined.includes("dard") || combined.includes("hurt") || combined.includes("broken") || combined.includes("alone") || combined.includes("tanhai") || combined.includes("bichhad") || combined.includes("yaad") || combined.includes("dukh")) {
+    return (combined.includes("broken") || combined.includes("dil") || combined.includes("heart")) ? "💔" : "😢";
+  }
+  if (combined.includes("love") || combined.includes("romance") || combined.includes("romantic") || combined.includes("pyar") || combined.includes("pyaar") || combined.includes("ishq") || combined.includes("mohabbat") || combined.includes("प्यार")) return "❤️";
+  if (combined.includes("motivation") || combined.includes("motivational") || combined.includes("success") || combined.includes("power") || combined.includes("himmat") || combined.includes("khudi") || combined.includes("hazaaron") || combined.includes("inspire") || combined.includes("buland")) return "✨";
+  if (combined.includes("happy") || combined.includes("khush") || combined.includes("smile")) return "😊";
+  if (combined.includes("friend") || combined.includes("dost") || combined.includes("yaari")) return "🤝";
+  if (combined.includes("attitude") || combined.includes("king") || combined.includes("tevar")) return "😎";
   return "✨";
 }
 
@@ -451,6 +466,22 @@ function convertTextSizeToPx(textSizeClass: string): number {
   return 24;
 }
 
+export const CARD_RATIO_SPECS: Record<
+  "1:1" | "4:5" | "9:16" | "16:9",
+  {
+    width: number;
+    height: number;
+    aspectClass: string;
+    label: string;
+    aspectRatioValue: number;
+  }
+> = {
+  "9:16": { width: 360, height: 640, aspectClass: "aspect-[9/16]", label: "Story (9:16)", aspectRatioValue: 9 / 16 },
+  "1:1": { width: 360, height: 360, aspectClass: "aspect-square", label: "Square (1:1)", aspectRatioValue: 1 / 1 },
+  "4:5": { width: 360, height: 450, aspectClass: "aspect-[4/5]", label: "Post (4:5)", aspectRatioValue: 4 / 5 },
+  "16:9": { width: 360, height: 202.5, aspectClass: "aspect-[16/9]", label: "Banner (16:9)", aspectRatioValue: 16 / 9 },
+};
+
 function getAutoAdjustedCardSpecs(
   ratio: "1:1" | "4:5" | "9:16" | "16:9",
   baseTextSize: string = "text-2xl",
@@ -467,16 +498,13 @@ function getAutoAdjustedCardSpecs(
   const length = cleanText.length;
 
   // Determine line wrap limit based on aspect ratio
-  // E.g. narrow columns wrap very early, wide ones take more characters.
-  let lineWrapCharLimit = 22;
+  let lineWrapCharLimit = 24;
   if (ratio === "9:16") {
-    lineWrapCharLimit = 16;
+    lineWrapCharLimit = 18;
   } else if (ratio === "16:9") {
     lineWrapCharLimit = 38;
   } else if (ratio === "4:5") {
     lineWrapCharLimit = 22;
-  } else {
-    lineWrapCharLimit = 24;
   }
 
   // Estimate the actual visual wrapped lines
@@ -488,519 +516,215 @@ function getAutoAdjustedCardSpecs(
     estimatedLines += Math.max(1, Math.ceil(trimmed.length / lineWrapCharLimit));
   }
 
-  const totalVerticalUnits = estimatedLines + (hasPoet ? 1.5 : 0);
   const totalLines = Math.max(1, estimatedLines);
 
-  // Sequential premium tailwind text sizes from smallest to largest (as safe fallbacks)
+  // Sequential tailwind text sizes as safe fallbacks
   const sizeOrder = [
-    "text-[10px] sm:text-xs md:text-sm",                    // index 0: micro
-    "text-xs sm:text-sm md:text-base",                      // index 1: tiny
-    "text-sm sm:text-base md:text-lg",                      // index 2: compact
-    "text-base sm:text-lg md:text-xl",                      // index 3: regular
-    "text-lg sm:text-xl md:text-2xl",                      // index 4: premium
-    "text-xl sm:text-2xl md:text-3xl",                      // index 5: grand
-    "text-2xl sm:text-3xl md:text-4xl",                     // index 6: extra grand
-    "text-3xl sm:text-4xl md:text-5xl",                     // index 7: large
-    "text-4xl sm:text-5xl md:text-6xl",                     // index 8: majestic
-    "text-5xl sm:text-6xl md:text-7xl",                     // index 9: monumental
+    "text-xs",
+    "text-sm",
+    "text-base",
+    "text-lg",
+    "text-xl",
+    "text-2xl",
+    "text-3xl",
   ];
 
-  // Map incoming Tailwind text size keys to indices
   const sizeKeyMap: Record<string, number> = {
-    "text-xs": 1,
-    "text-sm": 2,
-    "text-base": 3,
-    "text-lg": 4,
-    "text-xl": 5,
-    "text-2xl": 6,
-    "text-3xl": 7,
-    "text-4xl": 8,
-    "text-5xl": 9,
+    "text-xs": 0,
+    "text-sm": 1,
+    "text-base": 2,
+    "text-lg": 3,
+    "text-xl": 4,
+    "text-2xl": 5,
+    "text-3xl": 6,
   };
 
-  // Extract the raw text- class from responsive configurations if present
   let cleanBaseTextSize = (baseTextSize || "").trim();
-  const textClassMatch = cleanBaseTextSize.match(/\btext-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl)\b/);
+  const textClassMatch = cleanBaseTextSize.match(/\btext-(xs|sm|base|lg|xl|2xl|3xl)\b/);
   if (textClassMatch) {
     cleanBaseTextSize = `text-${textClassMatch[1]}`;
   }
 
-  let baseIndex = sizeKeyMap[cleanBaseTextSize] !== undefined ? sizeKeyMap[cleanBaseTextSize] : 6; // Default to text-2xl
+  const baseIndex = sizeKeyMap[cleanBaseTextSize] !== undefined ? sizeKeyMap[cleanBaseTextSize] : 4; // Default to text-xl
+  const fontSizeClass = sizeOrder[Math.max(0, Math.min(sizeOrder.length - 1, baseIndex))];
 
-  // Set maximum bounds for indices based on aspect ratios first, then fine-tune
-  let maxSafeIndex = 9;
-
-  if (ratio === "16:9") {
-    if (totalVerticalUnits >= 8) {
-      maxSafeIndex = 2; // compact
-    } else if (totalVerticalUnits >= 6) {
-      maxSafeIndex = 3; // regular
-    } else if (totalVerticalUnits >= 4.5) {
-      maxSafeIndex = 4; // premium
-    } else if (totalVerticalUnits >= 3) {
-      maxSafeIndex = 5; // grand
-    } else {
-      maxSafeIndex = 6; // extra grand
-    }
-  } else if (ratio === "9:16") {
-    if (totalVerticalUnits >= 12) {
-      maxSafeIndex = 4; // premium
-    } else if (totalVerticalUnits >= 9) {
-      maxSafeIndex = 5; // grand
-    } else if (totalVerticalUnits >= 7) {
-      maxSafeIndex = 6; // extra grand
-    } else if (totalVerticalUnits >= 5) {
-      maxSafeIndex = 7; // large
-    } else {
-      maxSafeIndex = 8; // majestic
-    }
-  } else if (ratio === "4:5") {
-    if (totalVerticalUnits >= 11) {
-      maxSafeIndex = 4; // premium
-    } else if (totalVerticalUnits >= 8) {
-      maxSafeIndex = 5; // grand
-    } else if (totalVerticalUnits >= 6) {
-      maxSafeIndex = 6; // extra grand
-    } else if (totalVerticalUnits >= 4.5) {
-      maxSafeIndex = 7; // large
-    } else {
-      maxSafeIndex = 8; // majestic
-    }
-  } else {
-    if (totalVerticalUnits >= 11) {
-      maxSafeIndex = 4; // premium
-    } else if (totalVerticalUnits >= 8) {
-      maxSafeIndex = 5; // grand
-    } else if (totalVerticalUnits >= 6) {
-      maxSafeIndex = 6; // extra grand
-    } else if (totalVerticalUnits >= 4) {
-      maxSafeIndex = 7; // large
-    } else {
-      maxSafeIndex = 8; // majestic
-    }
-  }
-
-  // 1. Ratio multiplier: how spacious is the card physically?
-  let ratioMultiplier = 1.0;
-  if (ratio === "4:5") {
-    ratioMultiplier = 1.15;
-  } else if (ratio === "9:16") {
-    ratioMultiplier = 1.05;
-  } else if (ratio === "16:9") {
-    ratioMultiplier = 0.8;
-  } else {
-    ratioMultiplier = 1.0;
-  }
-
-  // 2. Length modifier
-  let lengthModifier = 0;
-  if (length < 35) {
-    lengthModifier = 2;
-  } else if (length < 55) {
-    lengthModifier = 1;
-  } else if (length > 95) {
-    lengthModifier = -2;
-  } else if (length > 75) {
-    lengthModifier = -1;
-  }
-
-  // Calculate final adjusted index
-  let adjustedIndex = baseIndex + lengthModifier;
-  adjustedIndex = Math.round(adjustedIndex * ratioMultiplier);
-
-  // Apply maximum safe index cap to prevent overflow
-  let finalIndex = Math.min(adjustedIndex, maxSafeIndex);
-
-  // Dynamic configuration fallback tailwind classes
-  let paddingClass = "pt-14 pb-5 px-5 sm:pt-16 sm:pb-6 sm:px-6";
+  // Dynamic padding classes to ensure safe separation from top bar controls & bottom watermark
+  let paddingClass = "pt-[46px] pb-[28px] px-[16px]";
   let leadingClass = "leading-relaxed";
-  let containerClass = "max-w-[96%] px-2";
-  let emojiClass = "text-2xl sm:text-3xl";
-  let emojiMarginClass = "mb-3 sm:mb-4";
-  let poetMarginClass = "mt-4 sm:mt-6";
-  let topBarMarginClass = "mb-4 sm:mb-5 pb-2 sm:pb-3";
+  let containerClass = "max-w-[94%] px-2";
 
   if (ratio === "16:9") {
-    if (totalVerticalUnits >= 6) {
-      paddingClass = "pt-10 pb-2.5 px-3.5 sm:pt-11 sm:pb-3 sm:px-4";
-      leadingClass = "leading-snug";
-      containerClass = "max-w-[98%] px-1";
-      emojiClass = "text-[14px] sm:text-base";
-      emojiMarginClass = "mb-0.5 sm:mb-1";
-      poetMarginClass = "mt-1 sm:mt-1.5";
-      topBarMarginClass = "mb-1 sm:mb-1.5 pb-0.5";
-    } else if (totalVerticalUnits >= 4) {
-      paddingClass = "pt-12 pb-3 px-4 sm:pt-14 sm:pb-4 sm:px-5";
-      leadingClass = "leading-normal";
-      containerClass = "max-w-[97%] px-1.5";
-      emojiClass = "text-base sm:text-lg";
-      emojiMarginClass = "mb-1.5 sm:mb-2";
-      poetMarginClass = "mt-2 sm:mt-2.5";
-      topBarMarginClass = "mb-2 pb-1";
-    } else {
-      paddingClass = "pt-14 pb-4 px-5 sm:pt-16 sm:pb-5 sm:px-6";
-      leadingClass = "leading-relaxed";
-      containerClass = "max-w-[96%] px-2";
-      emojiClass = "text-xl sm:text-2xl";
-      emojiMarginClass = "mb-2 sm:mb-3";
-      poetMarginClass = "mt-3 sm:mt-4";
-      topBarMarginClass = "mb-3 pb-1.5";
-    }
+    paddingClass = "pt-[38px] pb-[22px] px-[20px]";
+    leadingClass = "leading-normal";
+    containerClass = "max-w-[96%] px-1";
   } else if (ratio === "9:16") {
-    if (totalVerticalUnits >= 8) {
-      paddingClass = "pt-12 pb-4 px-3.5 sm:pt-14 sm:pb-5 sm:px-4.5";
-      leadingClass = "leading-normal";
-      containerClass = "max-w-[98%] px-1 py-1";
-      emojiClass = "text-xl";
-      emojiMarginClass = "mb-1.5 sm:mb-2";
-      poetMarginClass = "mt-2 sm:mt-3";
-      topBarMarginClass = "mb-2 pb-1";
-    } else if (totalVerticalUnits >= 5) {
-      paddingClass = "pt-14 pb-5 px-4.5 sm:pt-16 sm:pb-6 sm:px-5.5";
-      leadingClass = "leading-relaxed";
-      containerClass = "max-w-[96%] px-1.5 py-2";
-      emojiClass = "text-2xl";
-      emojiMarginClass = "mb-3 sm:mb-4";
-      poetMarginClass = "mt-3.5 sm:mt-4.5";
-      topBarMarginClass = "mb-3 pb-1.5";
-    } else {
-      paddingClass = "pt-16 pb-6 px-5.5 sm:pt-18 sm:pb-7 sm:px-6.5";
-      leadingClass = "leading-loose";
-      containerClass = "max-w-[95%] px-2 py-3";
-      emojiClass = "text-3xl";
-      emojiMarginClass = "mb-4 sm:mb-5";
-      poetMarginClass = "mt-5 sm:mt-6";
-      topBarMarginClass = "mb-4 pb-2";
-    }
-  } else {
-    if (totalVerticalUnits >= 8) {
-      paddingClass = "pt-12 pb-4 px-4 sm:pt-14 sm:pb-5 sm:px-5";
-      leadingClass = "leading-normal";
-      containerClass = "max-w-[97%] px-1.5 py-1";
-      emojiClass = "text-xl sm:text-2xl";
-      emojiMarginClass = "mb-2";
-      poetMarginClass = "mt-2.5 sm:mt-3.5";
-      topBarMarginClass = "mb-2.5 pb-1.5";
-    } else if (totalVerticalUnits >= 5) {
-      paddingClass = "pt-14 pb-5 px-5 sm:pt-16 sm:pb-6 sm:px-6";
-      leadingClass = "leading-relaxed";
-      containerClass = "max-w-[96%] px-2 py-1.5";
-      emojiClass = "text-2xl sm:text-3xl";
-      emojiMarginClass = "mb-3 sm:mb-4";
-      poetMarginClass = "mt-4 sm:mt-5";
-      topBarMarginClass = "mb-4 pb-2.5";
-    } else {
-      paddingClass = "pt-16 pb-6 px-6 sm:pt-18 sm:pb-7 sm:px-7";
-      leadingClass = "leading-loose";
-      containerClass = "max-w-[95%] px-2.5 py-2";
-      emojiClass = "text-3xl sm:text-4xl";
-      emojiMarginClass = "mb-4 sm:mb-5";
-      poetMarginClass = "mt-5 sm:mt-7";
-      topBarMarginClass = "mb-5 pb-3";
-    }
+    paddingClass = "pt-[48px] pb-[32px] px-[16px]";
+    leadingClass = "leading-relaxed";
+    containerClass = "max-w-[92%] px-1.5";
+  } else if (ratio === "4:5") {
+    paddingClass = "pt-[46px] pb-[28px] px-[16px]";
+    leadingClass = "leading-relaxed";
+    containerClass = "max-w-[94%] px-2";
   }
-
-  // Ensure index is within range [0, sizeOrder.length - 1]
-  finalIndex = Math.max(0, Math.min(sizeOrder.length - 1, finalIndex));
-  const fontSizeClass = sizeOrder[finalIndex];
 
   // ==========================================
-  // MATHEMATICAL SMART INLINE TEXT LAYOUT SYSTEM
+  // UNIFIED PROFESSIONAL TYPOGRAPHY & SPACING SYSTEM
   // ==========================================
-  
-  // We calculate responsive size parameters using container-relative query units (cqw/cqh)
-  // This guarantees that whether the card is tiny in preview or giant in download,
-  // the text ratio remains exactly proportional (occupying about 70% of the visual space).
-  
-  // 1. Calculate optimal padding top & bottom in cqh (percentage of card height)
-  // We keep padding tight (7-8%) so more height can be dedicated to natural spacing inside the card
-  let ptCqh = 8;
-  let pbCqh = 8;
-  let pxCqw = 8;
-  
-  if (ratio === "9:16") {
-    ptCqh = 8;
-    pbCqh = 8;
-    pxCqw = 7;
-  } else if (ratio === "16:9") {
-    ptCqh = 4;
-    pbCqh = 4;
-    pxCqw = 10;
-  } else if (ratio === "4:5") {
-    ptCqh = 7;
-    pbCqh = 7;
-    pxCqw = 8;
-  }
+  // Hierarchy standard:
+  // Heading: ~24–32px (via ShayariCardTitle)
+  // Verse body: ~17–20.5px
+  // Watermark: ~11–13px (via renderWatermark)
+  //
+  // Language-independent: Hindi, Urdu, Hinglish, and English follow the exact same visual sizing rules.
 
-  // If the shayari has many lines or is very long, reduce the card padding to gain precious vertical space!
-  if (totalLines >= 6 || length > 110) {
-    ptCqh = Math.max(3, ptCqh - 3);
-    pbCqh = Math.max(3, pbCqh - 3);
-  } else if (totalLines >= 4 || length > 75) {
-    ptCqh = Math.max(4, ptCqh - 1.5);
-    pbCqh = Math.max(4, pbCqh - 1.5);
-  }
-
-  // 2. Calculate optimal font size in container width units (cqw)
-  // To keep text prominently sized and fill the visual balance of the card height.
-  let baseCqw = 8.0; 
+  let baseCqw = 4.9; 
   if (ratio === "9:16") {
-    baseCqw = 9.8; // story is narrow but very tall, so font relative to width can be larger
+    baseCqw = 5.1; // story format (narrower width, taller canvas)
   } else if (ratio === "16:9") {
-    baseCqw = 6.0; // landscape is very short, keep it smaller to fit
+    baseCqw = 3.3; // landscape format
   } else if (ratio === "4:5") {
-    baseCqw = 8.8; // portrait is spacious
+    baseCqw = 4.8;
   }
   
-  // Apply a non-linear scale down based on length & total line count
-  // "For short shayaris: Increase font size. For long shayaris: Reduce font size automatically."
+  // Predictable, bounded scale factor based on length & total line count
+  // Keeps verse comfortably between 17px and 20.5px without extreme scaling
   let sizeFactor = 1.0;
-  if (length < 25) {
-    sizeFactor = 1.45; // ultra-boost for short two-liner couplets
-  } else if (length < 45) {
-    sizeFactor = 1.25; // boost for short shayaris
-  } else if (length < 70) {
-    sizeFactor = 1.05; // normal-medium
-  } else if (length < 95) {
-    sizeFactor = 0.90; // reduction for longer ones
-  } else if (length < 120) {
-    sizeFactor = 0.78; // further reduction
-  } else if (length < 150) {
-    sizeFactor = 0.65; // reduction for very long ones
+  if (length < 35 && totalLines <= 2) {
+    sizeFactor = 1.05; // gentle, readable scale for short 2-line couplets (~20px)
+  } else if (length < 75 && totalLines <= 4) {
+    sizeFactor = 1.0;  // ideal standard (~18.5-19.5px)
+  } else if (length < 120 || totalLines <= 6) {
+    sizeFactor = 0.94; // controlled reduction (~17.5-18.5px)
   } else {
-    sizeFactor = 0.55; // ultra-aggressive reduction for massive texts to fit perfectly
+    sizeFactor = 0.88; // long verses (~16.5-17.5px, never tiny)
   }
   
-  // Adjust based on line count too to prevent height overflow
-  if (totalLines >= 8) {
-    sizeFactor = Math.min(sizeFactor, 0.58);
-  } else if (totalLines >= 6) {
-    sizeFactor = Math.min(sizeFactor, 0.68);
-  } else if (totalLines >= 4) {
-    sizeFactor = Math.min(sizeFactor, 0.82);
-  }
-  
-  // Since index 6 is our baseline for "text-2xl" (the default text size in getAutoAdjustedCardSpecs):
-  // We apply a scale factor based on the final calculated index so the container width units (cqw)
-  // accurately scale in alignment with the user's manual text size selection and auto-fitted limits.
+  // Custom text size adjustments
   let sizeMultiplier = 1.0;
   if (baseTextSize && baseTextSize.endsWith("px")) {
     const pxVal = parseInt(baseTextSize, 10);
-    const safePxVal = isNaN(pxVal) ? 24 : pxVal;
-    sizeMultiplier = safePxVal / 24;
-  } else {
-    const indexDifference = finalIndex - 6;
-    sizeMultiplier = indexDifference >= 0
-      ? 1.0 + indexDifference * 0.15   // 15% boost per step above text-2xl
-      : 1.0 + indexDifference * 0.11;  // 11% reduction per step below text-2xl (gentle reduction)
+    const safePxVal = isNaN(pxVal) ? 19 : pxVal;
+    sizeMultiplier = safePxVal / 19;
+  } else if (isCustomized) {
+    const indexDifference = baseIndex - 4;
+    sizeMultiplier = 1.0 + indexDifference * 0.08;
   }
   
-  let computedFontSizeCqw = baseCqw * sizeFactor * Math.max(0.25, sizeMultiplier);
+  let computedFontSizeCqw = baseCqw * sizeFactor * sizeMultiplier;
   
-  // Clamp boundaries to ensure excellent readability
-  let minCqwBound = 3.2; // lowered from 4.0 to allow smaller cards to fit perfectly
-  let maxCqwBound = 12.0;
+  // Clamp boundaries to enforce strict typography hierarchy (verse stays 16–21px on standard cards)
+  let minCqwBound = 4.0;
+  let maxCqwBound = 5.8;
   if (ratio === "16:9") {
     minCqwBound = 2.6;
-    maxCqwBound = 6.6;
+    maxCqwBound = 3.8;
   } else if (ratio === "9:16") {
     minCqwBound = 4.2;
-    maxCqwBound = 13.5;
+    maxCqwBound = 6.0;
   }
 
   if (isCustomized) {
-    // Widened boundaries for custom precise sizes, avoiding auto-fit clamps
-    minCqwBound = 0.5;
-    maxCqwBound = 28.0;
-  } else {
-    if (finalIndex > 6) {
-      // Expand bounds to allow massive custom text sizes
-      maxCqwBound *= 1.6;
-    } else if (finalIndex < 6) {
-      // Lower bounds to allow tiny custom text sizes
-      minCqwBound *= 0.7;
-    }
+    minCqwBound = 2.0;
+    maxCqwBound = 10.0;
   }
 
   computedFontSizeCqw = Math.max(minCqwBound, Math.min(maxCqwBound, computedFontSizeCqw));
 
-  // 3. Compute dynamic Line Spacing (lineHeight)
-  // "For short shayaris: Add more line spacing. For long shayaris: tighter line-height to fit."
-  let computedLineHeight = 1.95; // Very spacious, elegant and premium
+  // Dynamic Line Spacing (lineHeight) - balanced and comfortable for Devanagari, Urdu & Latin
+  let computedLineHeight = 1.66;
   if (isCustomized && customLineSpacing !== undefined) {
     computedLineHeight = customLineSpacing;
   } else {
-    if (length < 30) {
-      computedLineHeight = 2.5; // ultra spacious couplet spacing
-    } else if (length < 50) {
-      computedLineHeight = 2.2; // roomy line spacing
-    } else if (length > 100 || totalLines >= 6) {
-      computedLineHeight = 1.45; // very compact for massive verses
-    } else if (totalLines >= 5) {
-      computedLineHeight = 1.6;  // compact line spacing for longer shayari
-    } else if (totalLines >= 3) {
-      computedLineHeight = 1.8;
+    if (length < 35 && totalLines <= 2) {
+      computedLineHeight = 1.74; // spacious couplet
+    } else if (length > 90 || totalLines >= 5) {
+      computedLineHeight = 1.58; // slightly tighter for longer verses
     }
     
     if (ratio === "16:9") {
-      computedLineHeight = Math.min(computedLineHeight, 1.55); // clamp landscape
-    } else if (ratio === "9:16") {
-      computedLineHeight = Math.max(computedLineHeight, 2.15);  // boost story aspect
+      computedLineHeight = Math.min(computedLineHeight, 1.52);
     }
   }
 
-  // 4. Compute Smart Text Position & Vertical alignment offsets
-  // "Do not always place the shayari exactly in the center. Automatically position the text based on the amount of content."
-  // Short shayaris look much more elegant when placed with a modern asymmetric, slightly top-heavy position.
-  let verticalShiftCqh = 0;
-  let targetHeightCqh = 78; // occupies about 75-80% height of the card
-  let justifyContent: "center" | "space-around" | "space-between" = "space-around";
-
-  if (length < 45) {
-    // Short shayari: Offset slightly upwards, group comfortably to keep it balanced and fill up to 74% - 78% card height
-    verticalShiftCqh = -1.5;
-    targetHeightCqh = 74; 
-    justifyContent = "space-around";
-    
-    if (ratio === "9:16") {
-      verticalShiftCqh = -2.0; // elegant story offset
-      targetHeightCqh = 78;
-    } else if (ratio === "16:9") {
-      verticalShiftCqh = -0.5;
-      targetHeightCqh = 68;
-    }
-  } else if (length < 80) {
-    // Medium shayari: slight upward shift for elegant balance, utilizing 78% - 82% of card height
-    verticalShiftCqh = -0.5;
-    targetHeightCqh = 78; 
-    justifyContent = "space-around";
-    
-    if (ratio === "9:16") {
-      verticalShiftCqh = -1.0;
-      targetHeightCqh = 82;
-    } else if (ratio === "16:9") {
-      verticalShiftCqh = 0;
-      targetHeightCqh = 72;
-    }
-  } else {
-    // Long shayari: use about 80% - 84% height of the card so it spreads naturally and doesn't compress or overflow
-    verticalShiftCqh = hasPoet ? -0.5 : 0;
-    targetHeightCqh = 80;
-    justifyContent = hasPoet ? "space-between" : "space-around"; // spread fully to look majestic
-    
-    if (ratio === "9:16") {
-      targetHeightCqh = 84; // utilize maximum space on stories
-    } else if (ratio === "16:9") {
-      targetHeightCqh = 74; // constrain slightly to prevent overflow
-    }
-  }
-
-  if (hideEmoji) {
-    if (ratio === "9:16") {
-      verticalShiftCqh -= 5.5;
-    } else if (ratio === "16:9") {
-      verticalShiftCqh -= 3.0;
-    } else {
-      verticalShiftCqh -= 4.5;
-    }
-  }
-
-  // Setup fluid responsive scale-factor hooks for @container query overrides
-  let hRatio = 1.0;
-  if (ratio === "4:5") {
-    hRatio = 1.25;
-  } else if (ratio === "9:16") {
-    hRatio = 1.7777777778;
+  // Vertical offsets and gaps: clean, consistent vertical gap between headline and verse (24–32px)
+  let titleVerseGapPx = 28;
+  let titleVerseGapCqw = 5.8;
+  if (ratio === "9:16") {
+    titleVerseGapPx = 30;
+    titleVerseGapCqw = 6.2;
   } else if (ratio === "16:9") {
-    hRatio = 0.5625;
+    titleVerseGapPx = 20;
+    titleVerseGapCqw = 3.6;
+  } else if (ratio === "4:5") {
+    titleVerseGapPx = 28;
+    titleVerseGapCqw = 5.8;
+  }
+
+  // Paragraph gap between lines of verse
+  let paragraphGapCqw = 2.4;
+  if (ratio === "9:16") {
+    paragraphGapCqw = 2.8;
+  } else if (ratio === "16:9") {
+    paragraphGapCqw = 1.5;
+  } else if (ratio === "4:5") {
+    paragraphGapCqw = 2.4;
+  }
+
+  if (totalLines <= 2 && length < 40) {
+    paragraphGapCqw *= 1.2;
+  } else if (totalLines >= 5 || length > 100) {
+    paragraphGapCqw *= 0.88;
+  }
+
+  // Subtle optical vertical centering offset (slight upward bias for top bar clearance)
+  let verticalShiftCqw = -0.5;
+  if (ratio === "9:16") {
+    verticalShiftCqw = -1.0;
+  } else if (ratio === "4:5") {
+    verticalShiftCqw = -0.6;
+  } else if (ratio === "16:9") {
+    verticalShiftCqw = 0;
   }
 
   const cardVariables = {
-    "--cqh-unit": `${hRatio}cqw`,
-    "--card-pt": `calc(${ptCqh} * var(--cqh-unit))`,
-    "--card-pb": `calc(${pbCqh} * var(--cqh-unit))`,
-    "--card-px": `${pxCqw}cqw`,
+    "--card-px": ratio === "16:9" ? "5cqw" : "4cqw",
     "--font-size": `${computedFontSizeCqw}cqw`,
     "--line-height": `${computedLineHeight}`,
-    "--paragraph-gap": `calc(${ptCqh * 0.4} * var(--cqh-unit))`, // Dynamic, tied to padding/margins to maintain visual balance
-    "--inner-height": isCustomized && customTextBoxHeight !== undefined ? `calc(${customTextBoxHeight} * var(--cqh-unit))` : `calc(${targetHeightCqh} * var(--cqh-unit))`,
-    "--vertical-shift": `calc(${verticalShiftCqh} * var(--cqh-unit))`,
+    "--paragraph-gap": `${paragraphGapCqw}cqw`,
+    "--title-verse-gap": ratio === "16:9" ? "clamp(18px, 3.8cqw, 24px)" : `clamp(${titleVerseGapPx - 4}px, ${titleVerseGapCqw}cqw, ${titleVerseGapPx + 4}px)`,
+    "--vertical-shift": `${verticalShiftCqw}cqw`,
   } as React.CSSProperties;
 
   const cardStyle: React.CSSProperties = {
-    paddingTop: "calc(var(--card-pt) * var(--card-pt-scale, 1))",
-    paddingBottom: "calc(var(--card-pb) * var(--card-pb-scale, 1))",
-    paddingLeft: "var(--card-px)",
-    paddingRight: "var(--card-px)",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
+    width: "100%",
   };
 
+  // Cohesive inner wrapper that keeps Heading and Verse grouped naturally without huge blank areas
   const innerWrapperStyle: React.CSSProperties = {
-    transform: "translateY(calc(var(--vertical-shift) * var(--vertical-shift-scale, 1)))",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent, // Dynamic spacing model
+    justifyContent: "center",
     width: "100%",
-    height: "calc(var(--inner-height) * var(--inner-height-scale, 1))", 
-    transition: "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), height 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    transform: "translateY(calc(var(--vertical-shift) * var(--vertical-shift-scale, 1)))",
+    transition: "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
   };
 
   const textStyle: React.CSSProperties = {
     fontSize: "calc(var(--font-size) * var(--font-size-scale, 1))",
     lineHeight: "calc(var(--line-height) * var(--line-height-scale, 1))",
     width: isCustomized && customTextBoxWidth !== undefined ? `${customTextBoxWidth}%` : "100%",
-    maxWidth: isCustomized && customTextBoxWidth !== undefined ? `${customTextBoxWidth}%` : (ratio === "9:16" ? "94%" : "96%"),
+    maxWidth: isCustomized && customTextBoxWidth !== undefined ? `${customTextBoxWidth}%` : (ratio === "9:16" ? "92%" : "94%"),
     whiteSpace: isCustomized && customTextWrapping !== undefined ? (customTextWrapping === "nowrap" ? "nowrap" : "normal") : "normal",
+    wordBreak: "normal",
+    overflowWrap: "break-word",
   };
-
-  // Dynamic emoji size & margin scale
-  const emojiSizeCqw = Math.max(6, Math.min(13, computedFontSizeCqw * 1.45));
-  const emojiMarginCqh = Math.max(2.5, Math.min(6.5, computedFontSizeCqw * 0.75));
-  
-  const emojiContainerStyle: React.CSSProperties = {
-    marginBottom: `calc(${emojiMarginCqh} * var(--cqh-unit))`,
-  };
-  
-  const emojiStyle: React.CSSProperties = {
-    fontSize: `${emojiSizeCqw}cqw`,
-  };
-
-  // Dynamic poet size & margin scale
-  const poetMarginCqh = Math.max(3.5, Math.min(9, computedFontSizeCqw * 0.95));
-  
-  const poetContainerStyle: React.CSSProperties = {
-    marginTop: `calc(${poetMarginCqh} * var(--cqh-unit))`,
-  };
-
-  const poetStyle: React.CSSProperties = {
-    fontSize: `${Math.max(2.6, Math.min(4.6, computedFontSizeCqw * 0.45))}cqw`,
-  };
-
-  // 5. Dynamic paragraph/line spacing (gap between lines of shayari) in cqh
-  // Reduced by 30% to keep spacing tight, premium, and balanced without massive empty gaps
-  let computedParagraphGapCqh = 2.9; 
-  if (ratio === "9:16") {
-    computedParagraphGapCqh = 4.5; 
-  } else if (ratio === "4:5") {
-    computedParagraphGapCqh = 3.5;
-  } else if (ratio === "16:9") {
-    computedParagraphGapCqh = 1.4; 
-  }
-  
-  if (length < 35) {
-    computedParagraphGapCqh *= 1.5; // Moderate boost for short couplets, keeping them tight
-  } else if (length < 60) {
-    computedParagraphGapCqh *= 1.1; // Slight elegant gap boost
-  } else if (length > 100) {
-    computedParagraphGapCqh *= 0.65; // Much tighter gap to avoid vertical overflow for longer verses
-  }
-
-  // Update variables block to use calculated paragraph gap
-  cardVariables["--paragraph-gap"] = `calc(${computedParagraphGapCqh} * var(--cqh-unit))`;
 
   const verseContainerStyle: React.CSSProperties = {
     display: "flex",
@@ -1016,20 +740,16 @@ function getAutoAdjustedCardSpecs(
     fontSizeClass,
     leadingClass,
     containerClass,
-    emojiClass,
-    emojiMarginClass,
-    poetMarginClass,
-    topBarMarginClass,
+    emojiClass: "text-lg",
+    emojiMarginClass: "mb-1.5",
+    poetMarginClass: "mt-2",
+    topBarMarginClass: "mb-2 pb-1",
     // Smart inline layout properties
     cardVariables,
     cardStyle,
     innerWrapperStyle,
     textStyle,
-    emojiContainerStyle,
-    emojiStyle,
-    poetContainerStyle,
-    poetStyle,
-    verseContainerStyle, // Added for dynamic paragraph/line spacing
+    verseContainerStyle,
   };
 }
 
@@ -1506,20 +1226,8 @@ const POETIC_KEYWORDS = new Set([
   "दिल", "इश्क", "मोहब्बत", "प्यार", "दर्द", "ज़िन्दगी", "मौत", "ख्वाब", "रात", "आँखें", "आँसू", "साँस", "याद", "चाँद", "सूरज", "तारे", "सितारे", "आसमान", "सच", "हवा", "बारिश", "आग", "पानी", "रोशनी", "अंधेरा", "रास्ता", "वक्त", "दुनिया", "फूल", "गुलाब", "शायर", "शायरी", "ग़म", "खुशी", "सनम", "जान", "जहाँ", "वफ़ा", "बेवफ़ा", "जुदाई", "मिलन", "खामोशी", "ग़ज़ल", "नज़्म", "शेर"
 ]);
 
-const HIGHLIGHT_COLORS = [
-  { id: "gold", name: "Gold", textClass: "text-amber-400 font-extrabold", colorHex: "#fbbf24", bgClass: "bg-amber-400" },
-  { id: "red", name: "Red", textClass: "text-red-500 font-extrabold", colorHex: "#ef4444", bgClass: "bg-red-500" },
-  { id: "blue", name: "Blue", textClass: "text-blue-500 font-extrabold", colorHex: "#3b82f6", bgClass: "bg-blue-500" },
-  { id: "green", name: "Green", textClass: "text-emerald-400 font-extrabold", colorHex: "#34d399", bgClass: "bg-emerald-400" },
-  { id: "purple", name: "Purple", textClass: "text-purple-500 font-extrabold", colorHex: "#a855f7", bgClass: "bg-purple-500" },
-  { id: "orange", name: "Orange", textClass: "text-orange-500 font-extrabold", colorHex: "#f97316", bgClass: "bg-orange-500" },
-  { id: "pink", name: "Pink", textClass: "text-pink-500 font-extrabold", colorHex: "#ec4899", bgClass: "bg-pink-500" },
-  { id: "cyan", name: "Cyan", textClass: "text-cyan-400 font-extrabold", colorHex: "#22d3ee", bgClass: "bg-cyan-400" },
-  { id: "yellow", name: "Yellow", textClass: "text-yellow-300 font-extrabold", colorHex: "#fde047", bgClass: "bg-yellow-300" }
-];
-
 function getHighlightColorClass(mainColor: string): string {
-  if (!mainColor) return "text-rose-600 font-extrabold";
+  if (!mainColor) return "text-amber-400 font-extrabold";
   
   const isGradient = mainColor.includes("bg-gradient-to-") || mainColor.includes("bg-clip-text");
   if (isGradient) {
@@ -1543,44 +1251,8 @@ function getHighlightColorClass(mainColor: string): string {
   if (isLight) {
     return "text-amber-400 font-extrabold drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]";
   } else {
-    return "text-rose-600 font-black drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)]";
+    return "text-amber-500 font-black drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)]";
   }
-}
-
-function renderHighlightedText(text: string, enabled: boolean, mainColor: string, customColorId?: string) {
-  if (!enabled) return text;
-  
-  const tokens = text.split(/([A-Za-z0-9\u0900-\u097F\u0600-\u06FF]+)/g);
-  const customConfig = customColorId ? HIGHLIGHT_COLORS.find(c => c.id === customColorId) : null;
-  const highlightClass = customConfig ? customConfig.textClass : getHighlightColorClass(mainColor);
-  const isGradient = mainColor.includes("bg-gradient-to-") || mainColor.includes("bg-clip-text");
-  
-  let styleOverride: React.CSSProperties | undefined = undefined;
-  if (customConfig) {
-    styleOverride = { WebkitTextFillColor: 'initial', color: customConfig.colorHex };
-  } else if (isGradient) {
-    styleOverride = { WebkitTextFillColor: 'initial', color: '#facc15' };
-  }
-  
-  return (
-    <>
-      {tokens.map((token, idx) => {
-        const isWord = /[A-Za-z0-9\u0900-\u097F\u0600-\u06FF]+/.test(token);
-        if (isWord && POETIC_KEYWORDS.has(token.toLowerCase())) {
-          return (
-            <span 
-              key={idx} 
-              className={`${highlightClass} transition-all duration-300 inline-block`}
-              style={styleOverride}
-            >
-              {token}
-            </span>
-          );
-        }
-        return token;
-      })}
-    </>
-  );
 }
 
 const getPoetryAnimationTimings = (
@@ -1588,7 +1260,9 @@ const getPoetryAnimationTimings = (
   animationStyle: string,
   speedMultiplier: number,
   animDelay: number,
-  isHighlightEnabled: boolean
+  isHighlightEnabled: boolean,
+  highlights: HighlightPhrase[] = [],
+  activeAccentHex?: string
 ) => {
   let currentDelay = animDelay;
   
@@ -1617,6 +1291,7 @@ const getPoetryAnimationTimings = (
     text: string;
     isWhitespace: boolean;
     isKeyword: boolean;
+    highlightColor?: string;
     startDelay: number;
     duration: number;
     charTimings?: { char: string; delay: number; duration: number }[];
@@ -1631,59 +1306,61 @@ const getPoetryAnimationTimings = (
 
   const lineTimings: LineTiming[] = [];
 
-  lines.forEach((line, lineIdx) => {
-    // Split keeping whitespaces
-    const rawTokens = line.split(/(\s+)/);
-    const tokens: WordTiming[] = [];
-    let lineStartDelay = currentDelay;
+  const segmentedLines = isHighlightEnabled
+    ? segmentPoetryLinesForHighlighting(lines, highlights, activeAccentHex, true)
+    : lines.map((l) => [{ text: l, isHighlight: false, color: undefined }]);
 
-    // Handle line-by-line differently
+  lines.forEach((line, lineIdx) => {
+    const segments = segmentedLines[lineIdx] || [{ text: line, isHighlight: false, color: undefined }];
+
+    const rawTokens: { text: string; isKeyword: boolean; highlightColor?: string }[] = [];
+    for (const seg of segments) {
+      const subTokens = seg.text.split(/(\s+)/);
+      for (const st of subTokens) {
+        if (!st) continue;
+        rawTokens.push({
+          text: st,
+          isKeyword: seg.isHighlight,
+          highlightColor: seg.color || activeAccentHex
+        });
+      }
+    }
+
+    const tokens: WordTiming[] = [];
+    const lineStartDelay = currentDelay;
+
     if (animationStyle === "line-by-line") {
       const lineDuration = 0.8 * speedMultiplier;
-      rawTokens.forEach((token) => {
-        if (!token) return;
-        const isWhitespace = /^\s+$/.test(token);
-        const isKeyword = !isWhitespace && isHighlightEnabled &&
-          /[A-Za-z0-9\u0900-\u097F\u0600-\u06FF]+/.test(token) &&
-          POETIC_KEYWORDS.has(token.toLowerCase());
-
+      rawTokens.forEach((tok) => {
+        const isWhitespace = /^\s+$/.test(tok.text);
         tokens.push({
-          text: token,
+          text: tok.text,
           isWhitespace,
-          isKeyword,
+          isKeyword: !isWhitespace && tok.isKeyword,
+          highlightColor: tok.highlightColor,
           startDelay: currentDelay,
           duration: lineDuration,
         });
       });
       currentDelay += lineDuration;
     } else if (animationStyle === "none") {
-      rawTokens.forEach((token) => {
-        if (!token) return;
-        const isWhitespace = /^\s+$/.test(token);
-        const isKeyword = !isWhitespace && isHighlightEnabled &&
-          /[A-Za-z0-9\u0900-\u097F\u0600-\u06FF]+/.test(token) &&
-          POETIC_KEYWORDS.has(token.toLowerCase());
-
+      rawTokens.forEach((tok) => {
+        const isWhitespace = /^\s+$/.test(tok.text);
         tokens.push({
-          text: token,
+          text: tok.text,
           isWhitespace,
-          isKeyword,
+          isKeyword: !isWhitespace && tok.isKeyword,
+          highlightColor: tok.highlightColor,
           startDelay: currentDelay,
           duration: 0,
         });
       });
     } else {
-      // Word-by-word based sequential animations
-      rawTokens.forEach((token) => {
-        if (!token) return;
-        const isWhitespace = /^\s+$/.test(token);
-        const isKeyword = !isWhitespace && isHighlightEnabled &&
-          /[A-Za-z0-9\u0900-\u097F\u0600-\u06FF]+/.test(token) &&
-          POETIC_KEYWORDS.has(token.toLowerCase());
-
+      rawTokens.forEach((tok) => {
+        const isWhitespace = /^\s+$/.test(tok.text);
         if (isWhitespace) {
           tokens.push({
-            text: token,
+            text: tok.text,
             isWhitespace: true,
             isKeyword: false,
             startDelay: currentDelay,
@@ -1694,7 +1371,7 @@ const getPoetryAnimationTimings = (
           let charTimings: { char: string; delay: number; duration: number }[] = [];
 
           if (animationStyle === "typewriter") {
-            const chars = Array.from(token);
+            const chars = Array.from(tok.text);
             duration = chars.length * charDuration;
             let runningCharDelay = currentDelay;
             charTimings = chars.map((char) => {
@@ -1709,9 +1386,10 @@ const getPoetryAnimationTimings = (
           }
 
           tokens.push({
-            text: token,
+            text: tok.text,
             isWhitespace: false,
-            isKeyword,
+            isKeyword: tok.isKeyword,
+            highlightColor: tok.highlightColor,
             startDelay: currentDelay,
             duration,
             charTimings: charTimings.length > 0 ? charTimings : undefined,
@@ -1782,27 +1460,95 @@ const renderPoetryText = (
   animSpeed: "slow" | "normal" | "fast" = "normal",
   animDelay: number = 0.5,
   animStay: number = 3.0,
-  animLoop: boolean = true
+  animLoop: boolean = true,
+  customHideEmoji: boolean = false,
+  emojiVal: string = "",
+  mood?: string,
+  existingHighlights?: HighlightPhrase[]
 ) => {
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
   const speedMultiplier = animSpeed === "slow" ? 2.0 : animSpeed === "fast" ? 0.5 : 1.0;
 
+  const defaultMoodColor = getMoodDefaultAccentColor(mood);
+  const activeAccentHex = resolveHighlightHex(highlightColorId, defaultMoodColor);
+  const highlights = isHighlightEnabled ? getIntelligentHighlights(text, mood, existingHighlights) : [];
+
+  const isDarkText = !textColorClass || 
+                     textColorClass.includes("text-black") || 
+                     textColorClass.includes("text-[#111111]") || 
+                     textColorClass.includes("text-slate-800") || 
+                     textColorClass.includes("text-slate-900") || 
+                     textColorClass.includes("text-zinc-900") || 
+                     textColorClass.includes("text-stone-800") || 
+                     textColorClass.includes("text-rose-950") || 
+                     textColorClass.includes("text-amber-950");
+
+  const crispTextStyle: React.CSSProperties = {
+    fontWeight: 600,
+    letterSpacing: 0,
+    textRendering: "optimizeLegibility",
+    WebkitFontSmoothing: "antialiased",
+    MozOsxFontSmoothing: "grayscale",
+    filter: "none",
+    ...textStyle,
+    ...(isDarkText && !textStyle?.backgroundImage && !textStyle?.WebkitBackgroundClip ? { color: "#111111" } : {}),
+    textShadow: (textStyle?.backgroundImage || textStyle?.WebkitBackgroundClip) ? "none" : (textShadow || "0 1px 1px rgba(0, 0, 0, 0.04)")
+  };
+
   // If style is "none", render completely statically
   if (animationStyle === "none") {
+    const segmentedLines = isHighlightEnabled 
+      ? segmentPoetryLinesForHighlighting(lines, highlights, activeAccentHex, true)
+      : lines.map((l) => [{ text: l, isHighlight: false, color: undefined }]);
+
     return (
-      <div className="w-full flex flex-col items-center justify-center text-center">
-        {lines.map((line, lineIdx) => (
-          <p
-            key={lineIdx}
-            className={`${fontSizeClass} ${textColorClass} text-center ${leadingClass} ${containerClass} ${fontClass} ${weightClass} transition-all duration-300`}
-            style={{
-              ...textStyle,
-              textShadow
-            }}
-          >
-            {renderHighlightedText(line, isHighlightEnabled, textColorClass, highlightColorId)}
-          </p>
-        ))}
+      <div 
+        className="w-full flex flex-col items-center justify-center text-center"
+        style={{ gap: "calc(var(--paragraph-gap, 8px) * var(--paragraph-gap-scale, 1))" }}
+      >
+        {lines.map((line, lineIdx) => {
+          const isLastLine = lineIdx === lines.length - 1;
+          const segments = segmentedLines[lineIdx] || [{ text: line, isHighlight: false, color: undefined }];
+
+          return (
+            <p
+              key={lineIdx}
+              className={`${fontSizeClass} ${textColorClass} text-center ${leadingClass} ${containerClass} ${fontClass} ${weightClass} transition-all duration-300`}
+              style={crispTextStyle}
+            >
+              {segments.map((seg, sIdx) => {
+                if (seg.isHighlight) {
+                  return (
+                    <span
+                      key={sIdx}
+                      className="inline font-bold transition-all duration-300"
+                      style={{
+                        color: seg.color || activeAccentHex,
+                        WebkitTextFillColor: seg.color || activeAccentHex,
+                        backgroundImage: "none",
+                        WebkitBackgroundClip: "initial",
+                        fontWeight: 700,
+                        textShadow: textShadow || undefined,
+                      }}
+                    >
+                      {seg.text}
+                    </span>
+                  );
+                }
+                return (
+                  <span key={sIdx} className="inline">
+                    {seg.text}
+                  </span>
+                );
+              })}
+              {!customHideEmoji && isLastLine && emojiVal && (
+                <span className="inline-block ml-1.5 text-base sm:text-lg align-baseline select-none filter drop-shadow-2xs">
+                  {emojiVal}
+                </span>
+              )}
+            </p>
+          );
+        })}
       </div>
     );
   }
@@ -1812,20 +1558,23 @@ const renderPoetryText = (
     animationStyle,
     speedMultiplier,
     animDelay,
-    isHighlightEnabled
+    isHighlightEnabled,
+    highlights,
+    activeAccentHex
   );
 
   return (
-    <div key={`${animationStyle}-${replayTrigger}`} className="w-full flex flex-col items-center justify-center text-center">
+    <div 
+      key={`${animationStyle}-${replayTrigger}`} 
+      className="w-full flex flex-col items-center justify-center text-center"
+      style={{ gap: "calc(var(--paragraph-gap, 8px) * var(--paragraph-gap-scale, 1))" }}
+    >
       {timings.lineTimings.map((lineTiming) => {
         return (
           <p
             key={lineTiming.lineIndex}
             className={`${fontSizeClass} ${textColorClass} text-center ${leadingClass} ${containerClass} ${fontClass} ${weightClass} transition-all duration-300`}
-            style={{
-              ...textStyle,
-              textShadow
-            }}
+            style={crispTextStyle}
           >
             {lineTiming.tokens.map((token, tokenIdx) => {
               if (token.isWhitespace) {
@@ -1893,22 +1642,21 @@ const renderPoetryText = (
                 };
               }
 
-              const customConfig = highlightColorId ? HIGHLIGHT_COLORS.find(c => c.id === highlightColorId) : null;
-              const highlightClass = customConfig ? customConfig.textClass : getHighlightColorClass(textColorClass);
-              
-              let styleOverride: React.CSSProperties | undefined = undefined;
-              if (customConfig) {
-                styleOverride = { WebkitTextFillColor: 'initial', color: customConfig.colorHex };
-              } else if (textColorClass.includes("bg-gradient-to-") || textColorClass.includes("bg-clip-text")) {
-                styleOverride = { WebkitTextFillColor: 'initial', color: '#facc15' };
-              }
+              const styleOverride: React.CSSProperties | undefined = token.isKeyword ? {
+                color: token.highlightColor || activeAccentHex,
+                WebkitTextFillColor: token.highlightColor || activeAccentHex,
+                backgroundImage: "none",
+                WebkitBackgroundClip: "initial",
+                fontWeight: 700,
+                textShadow: textShadow || undefined
+              } : undefined;
 
               if (animationStyle === "typewriter" && token.charTimings) {
                 return (
                   <span
                     key={tokenIdx}
-                    className={`inline-block ${token.isKeyword ? highlightClass : ""}`}
-                    style={token.isKeyword ? styleOverride : undefined}
+                    className={`inline-block ${token.isKeyword ? "font-bold" : ""}`}
+                    style={styleOverride}
                   >
                     {token.charTimings.map((charObj, charIdx) => (
                       <motion.span
@@ -1934,13 +1682,18 @@ const renderPoetryText = (
                   initial={initial}
                   animate={animate}
                   transition={transition}
-                  className={`inline-block ${token.isKeyword ? highlightClass : ""}`}
-                  style={token.isKeyword ? styleOverride : undefined}
+                  className={`inline-block ${token.isKeyword ? "font-bold" : ""}`}
+                  style={styleOverride}
                 >
                   {token.text}
                 </motion.span>
               );
             })}
+            {!customHideEmoji && lineTiming.lineIndex === timings.lineTimings.length - 1 && emojiVal && (
+              <span className="inline-block ml-1.5 text-base sm:text-lg align-baseline select-none filter drop-shadow-2xs">
+                {emojiVal}
+              </span>
+            )}
           </p>
         );
       })}
@@ -1975,129 +1728,63 @@ const getGradientStops = (colorClass: string): string[] => {
 };
 
 function getWatermarkSettings(
-  ratio: string,
-  text: string,
-  hasPoet: boolean,
-  customTextY: number = 0,
-  textClass: string
+  _ratio?: string,
+  _text?: string,
+  _hasPoet?: boolean,
+  _customTextY: number = 0,
+  _textClass?: string
 ) {
-  const lines = (text || "").split("\n").filter((l: string) => l.trim());
-  const lineCount = lines.length;
-  
-  // Base default position centered near the bottom with elegant margins depending on ratio
-  let positionClass = "left-1/2 -translate-x-1/2 bottom-6.5";
-  
-  const isShiftedDown = customTextY > 12;
-  const isCrowded = lineCount >= 4 || isShiftedDown;
-
-  if (ratio === "16:9") {
-    // Short wide layout: vertical space is precious, bottom center but closer to bottom
-    if (isCrowded) {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-3";
-    } else if (hasPoet) {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-3.5";
-    } else {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-4";
-    }
-  } else if (ratio === "9:16") {
-    // Tall narrow layout: horizontal space is tight, bottom center but higher up
-    if (isCrowded) {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-6";
-    } else if (hasPoet) {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-7.5";
-    } else {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-9";
-    }
-  } else if (ratio === "4:5") {
-    // Slightly taller than square
-    if (isCrowded) {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-5";
-    } else if (hasPoet) {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-6";
-    } else {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-7";
-    }
-  } else {
-    // 1:1 Square layout
-    if (isCrowded) {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-4.5";
-    } else if (hasPoet) {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-5.5";
-    } else {
-      positionClass = "left-1/2 -translate-x-1/2 bottom-6.5";
-    }
-  }
-
-  // Use the same text color as the card text for a perfectly matching, elegant watermark
-  const colorClass = textClass;
+  // Constant bottom center placement with 14px bottom margin
+  const positionClass = "bottom-[14px] left-0 right-0";
+  const colorClass = "#FFFFFF";
 
   return { positionClass, colorClass };
 }
 
 function renderWatermark(
-  ratio: string,
-  text: string,
-  hasPoet: boolean,
-  customTextY: number = 0,
-  textClass: string,
-  customTextShadow?: boolean,
-  futureText?: string,
-  futurePosition?: string,
-  futureOpacity?: number,
+  _ratio?: string,
+  _text?: string,
+  _hasPoet?: boolean,
+  _customTextY: number = 0,
+  _textClass?: string,
+  _customTextShadow?: boolean,
+  _futureText?: string,
+  _futurePosition?: string,
+  _futureOpacity?: number,
   futureEnabled?: boolean
 ) {
-  // Determine position class based on future ready position if provided
-  let positionClass = "";
-  if (futurePosition) {
-    if (futurePosition === "top") positionClass = "top-4 left-1/2 -translate-x-1/2";
-    else if (futurePosition === "bottom") positionClass = "bottom-4 left-1/2 -translate-x-1/2";
-    else if (futurePosition === "center") positionClass = "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2";
-    else if (futurePosition === "top-right") positionClass = "top-4 right-4";
-    else if (futurePosition === "top-left") positionClass = "top-4 left-4";
-    else if (futurePosition === "bottom-right") positionClass = "bottom-4 right-4";
-    else if (futurePosition === "bottom-left") positionClass = "bottom-4 left-4";
-  } else {
-    const settings = getWatermarkSettings(ratio, text, hasPoet, customTextY, textClass);
-    positionClass = settings.positionClass;
-  }
-
-  // Future ready check, but currently we always show the watermark
-  // if (futureEnabled === false) return null;
-
-  const opacityValue = futureOpacity !== undefined ? futureOpacity : 0.85;
-  const watermarkText = futureText || "MOODY SHAYARI";
-
-  // White text with solid Black outline/stroke and rich soft shadow
-  const textShadowStyle: React.CSSProperties = {
-    color: "#ffffff",
-    textShadow: `
-      -1px -1px 0px #000000,
-       1px -1px 0px #000000,
-      -1px  1px 0px #000000,
-       1px  1px 0px #000000,
-      -1.5px 0px 0px #000000,
-       1.5px 0px 0px #000000,
-       0px -1.5px 0px #000000,
-       0px  1.5px 0px #000000,
-       0px  2px 5px rgba(0, 0, 0, 0.95),
-       0px  4px 10px rgba(0, 0, 0, 0.6)
-    `,
-    WebkitTextStroke: "0.2px rgba(0, 0, 0, 0.95)",
-  };
+  if (futureEnabled === false) return null;
 
   return (
     <div 
-      className={`absolute ${positionClass} select-none pointer-events-none z-20 animate-fade-in flex items-center justify-center`}
-      style={{ opacity: opacityValue }}
+      className="absolute bottom-[14px] left-0 right-0 w-full select-none pointer-events-none z-30 animate-fade-in flex items-center justify-center text-center px-4"
+      style={{
+        bottom: "14px",
+        left: "0px",
+        right: "0px",
+        width: "100%",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        textAlign: "center",
+        pointerEvents: "none",
+      }}
     >
-      <div className="flex items-center justify-center gap-1">
-        <span 
-          className="text-[8px] tracking-[0.25em] font-black leading-none uppercase select-none font-sans"
-          style={textShadowStyle}
-        >
-          {watermarkText}
-        </span>
-      </div>
+      <span 
+        className="font-sans font-semibold leading-none select-none text-center inline-block whitespace-nowrap"
+        style={{
+          color: "#FFFFFF",
+          fontSize: "clamp(11px, 3.4cqw, 13px)",
+          fontWeight: 600,
+          WebkitTextStroke: "1.5px #000000",
+          paintOrder: "stroke fill",
+          textShadow: "0 1px 2px rgba(0, 0, 0, 0.6)",
+          letterSpacing: "0.2px",
+          margin: "0 auto",
+        }}
+      >
+        Moody Shayari ✨
+      </span>
     </div>
   );
 }
@@ -2180,6 +1867,14 @@ export const matchesCategory = (stylePath: string, selectedCategory: string): bo
   return false;
 };
 
+export const formatCardBgUrl = (urlStr: string) => {
+  if (!urlStr) return "";
+  if (urlStr.startsWith("/") && typeof window !== "undefined") {
+    return `${window.location.origin}${urlStr}`;
+  }
+  return urlStr;
+};
+
 export default function App() {
   const APK_DOWNLOAD_URL = "https://github.com/aistorys327-maker/My-App-data-/releases/download/v1.0/Moody_Shairy_v1.0.apk";
 
@@ -2193,6 +1888,42 @@ export default function App() {
       }
     } catch (err) {
       window.location.href = APK_DOWNLOAD_URL;
+    }
+  };
+
+  const handleShareApk = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    triggerHapticFeedback();
+    
+    const apkShareMessage = `Moody Shayari – Har Mood ke liye Beautiful Shayari ✨\n\nApni feelings ko Hindi, Urdu aur Hinglish Shayari ke saath express karo. Beautiful card styles, gradients, images aur custom editing ke saath professional Shayari cards banao aur share karo.\n\nMoody Shayari – Beautiful Shayari for Every Mood ✨\n\nCreate, customize, and share Hindi, Urdu, and Hinglish Shayari with elegant card styles, gradients, images, and professional editing tools.\n\nDownload the official Android app:\n${APK_DOWNLOAD_URL}`;
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: "Moody Shayari",
+          text: apkShareMessage,
+        });
+        showToast("APK link shared! 🚀");
+        return;
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          return; // user cancelled
+        }
+        console.warn("Native share failed, fallback to copy:", err);
+      }
+    }
+
+    // Fallback: Copy link
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(apkShareMessage);
+        showToast("APK download link copied to clipboard! 📋");
+      } else {
+        fallbackCopy(apkShareMessage, "apk-link");
+        showToast("APK download link copied! 📋");
+      }
+    } catch (err) {
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(apkShareMessage)}`, "_blank");
     }
   };
 
@@ -2360,10 +2091,13 @@ export default function App() {
   });
 
   const [loadedCardStyles, setLoadedCardStyles] = useState<string[]>(DEFAULT_CARD_STYLES);
+  const [failedCardStyles, setFailedCardStyles] = useState<Set<string>>(new Set());
   const [categoryCardStyles, setCategoryCardStyles] = useState<Record<string, string[]>>(DEFAULT_CATEGORY_CARD_STYLES);
   const [isLoadingStyles, setIsLoadingStyles] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [editedCardStyleBg, setEditedCardStyleBg] = useState<string>("");
+
+  const validCardStyles = loadedCardStyles.filter((s) => !failedCardStyles.has(s));
 
   const normalizeMoodToCategory = (moodStr: string): string => {
     if (!moodStr) return "general";
@@ -2413,6 +2147,20 @@ export default function App() {
 
     return "";
   };
+
+  // Card Editor States
+  const [editingShayari, setEditingShayari] = useState<Shayari | null>(null);
+
+  useEffect(() => {
+    if (editingShayari) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [editingShayari]);
 
   useEffect(() => {
     const fetchStyles = async () => {
@@ -2552,12 +2300,37 @@ export default function App() {
   const [activeTranslateId, setActiveTranslateId] = useState<string | null>(null);
   const [isTranslatingId, setIsTranslatingId] = useState<string | null>(null);
   const [activeMoveTextId, setActiveMoveTextId] = useState<string | null>(null);
+  const [activeEditSheetId, setActiveEditSheetId] = useState<string | null>(null);
+  const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
 
-  // Card Editor States
-  const [editingShayari, setEditingShayari] = useState<Shayari | null>(null);
+  const handleApplyCardStyleToActiveCard = (stylePath: string | null) => {
+    const cleanStyle = stylePath || "";
+    setSelectedCardStyleBg(cleanStyle || null);
+    if (cleanStyle) {
+      localStorage.setItem("mood_shayari_selected_card_style_bg", cleanStyle);
+    } else {
+      localStorage.removeItem("mood_shayari_selected_card_style_bg");
+    }
+
+    if (generatedShayaris.length > 0) {
+      setGeneratedShayaris((prev) =>
+        prev.map((s) => ({
+          ...s,
+          customCardStyleBg: undefined,
+          customBgGradient: undefined,
+          customBgColor: undefined,
+          customBgTexture: undefined,
+        }))
+      );
+    }
+
+    const { cleanName } = cleanStyle ? getCategoryAndName(cleanStyle) : { cleanName: "Default" };
+    showToast(cleanStyle ? `${cleanName} style applied to all cards!` : "Default white card applied to all cards!");
+  };
 
   // Live Preview Resize Observer Refs and States
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  const activeEditorScaleRef = useRef<number>(1.0);
   const [previewContainerSize, setPreviewContainerSize] = useState({ width: 300, height: 250 });
 
   useEffect(() => {
@@ -2598,13 +2371,15 @@ export default function App() {
   const [editedTextBoxWidth, setEditedTextBoxWidth] = useState<number>(96);
   const [editedTextBoxHeight, setEditedTextBoxHeight] = useState<number>(78);
   const [editedTextWrapping, setEditedTextWrapping] = useState<"wrap" | "nowrap">("wrap");
-  const [bgTab, setBgTab] = useState<"solids" | "gradients" | "trending" | "textures" | "luxury">("trending");
+  const [bgTab, setBgTab] = useState<"cardStyles" | "solids" | "gradients" | "trending" | "textures" | "luxury">("cardStyles");
   const [editedBgTexture, setEditedBgTexture] = useState<string>("");
   const [editedImageFilter, setEditedImageFilter] = useState<string>("none");
-  const [editedHighlightKeywords, setEditedHighlightKeywords] = useState<boolean>(false);
+  const [editedHighlightKeywords, setEditedHighlightKeywords] = useState<boolean>(true);
   const [editedHighlightColor, setEditedHighlightColor] = useState<string>("gold");
   const [customHideEmoji, setCustomHideEmoji] = useState<boolean>(false);
   const [customHideWatermark, setCustomHideWatermark] = useState<boolean>(false);
+  const [editedBgOpacity, setEditedBgOpacity] = useState<number>(1.0);
+  const [editedTextGradient, setEditedTextGradient] = useState<string>("");
   const [showPremiumPopup, setShowPremiumPopup] = useState<boolean>(false);
   const [editorTab, setEditorTab] = useState<"verse" | "layout" | "typography" | "decorations">("verse");
   const [expandedSection, setExpandedSection] = useState<string>("verse");
@@ -2616,14 +2391,19 @@ export default function App() {
   useEffect(() => {
     if (editedFontClass) {
       const matchingFont = FONTS.find((f) => f.class === editedFontClass);
-      if (matchingFont && selectedFont !== matchingFont.id) {
-        setSelectedFont(matchingFont.id);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("mood_shayari_font", matchingFont.id);
-        }
+      if (matchingFont) {
+        setSelectedFont((prev) => {
+          if (prev !== matchingFont.id) {
+            if (typeof window !== "undefined") {
+              localStorage.setItem("mood_shayari_font", matchingFont.id);
+            }
+            return matchingFont.id;
+          }
+          return prev;
+        });
       }
     }
-  }, [editedFontClass, selectedFont]);
+  }, [editedFontClass]);
 
   const handleIncreaseTextSize = () => {
     const currentPx = convertTextSizeToPx(editedTextSize);
@@ -2704,7 +2484,23 @@ export default function App() {
     setEditedBgGradient(shayari.customBgGradient || "");
     setEditedBgTexture(shayari.customBgTexture || "");
     setEditedCardStyleBg(shayari.customCardStyleBg || selectedCardStyleBg || "");
-    setEditedTextColor(shayari.customTextColor || "text-slate-900");
+    const cardStyleBg = shayari.customCardStyleBg !== undefined ? shayari.customCardStyleBg : (selectedCardStyleBg || "");
+    const isDarkBg = !!cardStyleBg ||
+      (!!shayari.customBgGradient && (shayari.customBgGradient.includes("950") || shayari.customBgGradient.includes("900") || shayari.customBgGradient.includes("black"))) ||
+      (!!shayari.customBgColor && (shayari.customBgColor.includes("slate-9") || shayari.customBgColor.includes("zinc-9") || shayari.customBgColor.includes("black")));
+
+    let defaultTextColor = "text-slate-900";
+    if (shayari.customTextColor) {
+      if ((shayari.customTextColor === "text-white" || shayari.customTextColor === "text-slate-100") && !isDarkBg) {
+        defaultTextColor = "text-slate-900";
+      } else {
+        defaultTextColor = shayari.customTextColor;
+      }
+    } else {
+      defaultTextColor = isDarkBg ? "text-white" : "text-slate-900";
+    }
+
+    setEditedTextColor(defaultTextColor);
     setEditedFontClass(shayari.customFontClass || activeFontConfig.class);
     setEditedTextSize(shayari.customTextSize || "text-2xl");
     setEditedIsBold(shayari.customIsBold !== undefined ? shayari.customIsBold : (fontWeight === "bold"));
@@ -2713,15 +2509,17 @@ export default function App() {
     setEditedImageMode(shayari.customImageMode || "small");
     setEditedImageScale(shayari.customImageScale !== undefined ? shayari.customImageScale : 1);
     setEditedImageRotate(shayari.customImageRotate !== undefined ? shayari.customImageRotate : 0);
-    setEditedRatio(shayari.customRatio || "1:1");
+    setEditedRatio(shayari.customRatio || "9:16");
     setImagePos({ x: shayari.customImageX || 0, y: shayari.customImageY || 0 });
     setTextPos({ x: shayari.customTextX || 0, y: shayari.customTextY || 0 });
     setEditedTextScale(shayari.customTextScale !== undefined ? shayari.customTextScale : 1.0);
     setEditedImageFilter(shayari.customImageFilter || "none");
-    setEditedHighlightKeywords(shayari.customHighlightKeywords || false);
+    setEditedHighlightKeywords(shayari.customHighlightKeywords !== undefined ? shayari.customHighlightKeywords : true);
     setEditedHighlightColor(shayari.customHighlightColor || "gold");
     setCustomHideEmoji(shayari.customHideEmoji || false);
     setCustomHideWatermark(shayari.customHideWatermark || false);
+    setEditedBgOpacity(shayari.customBgOpacity !== undefined ? shayari.customBgOpacity : 1.0);
+    setEditedTextGradient(shayari.customTextGradient || "");
 
     // Initialize custom line spacing, box width, box height, text wrapping
     const defaultSpecs = getAutoAdjustedCardSpecs(
@@ -2801,6 +2599,8 @@ export default function App() {
       customHideWatermark,
       isCustomized: true,
       customCardStyleBg: editedCardStyleBg,
+      customBgOpacity: editedBgOpacity,
+      customTextGradient: editedTextGradient,
     };
 
     // Update in generatedShayaris if it exists there
@@ -2837,13 +2637,15 @@ export default function App() {
     setEditedImageMode("small");
     setEditedImageScale(1);
     setEditedImageRotate(0);
-    setEditedRatio("1:1");
+    setEditedRatio(editingShayari.customRatio || "9:16");
     setImagePos({ x: 0, y: 0 });
     setTextPos({ x: 0, y: 0 });
     setEditedTextScale(1.0);
     setEditedImageFilter("none");
-    setEditedHighlightKeywords(false);
+    setEditedHighlightKeywords(true);
     setEditedHighlightColor("gold");
+    setEditedBgOpacity(1.0);
+    setEditedTextGradient("");
     
     setEditedLineSpacing(1.95);
     setEditedTextBoxWidth(96);
@@ -2899,15 +2701,19 @@ export default function App() {
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsDragging(true);
-    setDragStart({ x: e.clientX - imagePos.x, y: e.clientY - imagePos.y });
+    setDragStart({ x: e.clientX, y: e.clientY });
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
-    setImagePos({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
-    });
+    const currentScale = activeEditorScaleRef.current || 1.0;
+    const dx = (e.clientX - dragStart.x) / currentScale;
+    const dy = (e.clientY - dragStart.y) / currentScale;
+    setDragStart({ x: e.clientX, y: e.clientY });
+    setImagePos((prev) => ({
+      x: prev.x + dx,
+      y: prev.y + dy,
+    }));
   };
 
   const handleMouseUp = () => {
@@ -2918,18 +2724,25 @@ export default function App() {
     if (e.touches.length === 1) {
       setIsDragging(true);
       setDragStart({
-        x: e.touches[0].clientX - imagePos.x,
-        y: e.touches[0].clientY - imagePos.y
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
       });
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging || e.touches.length !== 1) return;
-    setImagePos({
-      x: e.touches[0].clientX - dragStart.x,
-      y: e.touches[0].clientY - dragStart.y
+    const currentScale = activeEditorScaleRef.current || 1.0;
+    const dx = (e.touches[0].clientX - dragStart.x) / currentScale;
+    const dy = (e.touches[0].clientY - dragStart.y) / currentScale;
+    setDragStart({
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
     });
+    setImagePos((prev) => ({
+      x: prev.x + dx,
+      y: prev.y + dy,
+    }));
   };
 
   const handleTouchEnd = () => {
@@ -3068,6 +2881,189 @@ export default function App() {
     }
   };
 
+  const [sharingCardId, setSharingCardId] = useState<string | null>(null);
+
+  const getTargetExportDimensions = (ratio?: string): { targetW: number; targetH: number } => {
+    switch (ratio) {
+      case "1:1":
+        return { targetW: 1080, targetH: 1080 };
+      case "4:5":
+        return { targetW: 1080, targetH: 1350 };
+      case "16:9":
+        return { targetW: 1920, targetH: 1080 };
+      case "9:16":
+      default:
+        return { targetW: 1080, targetH: 1920 };
+    }
+  };
+
+  const renderCardToDataUrlAndBlob = async (
+    element: HTMLElement,
+    ratio: string
+  ): Promise<{ dataUrl: string; blob: Blob }> => {
+    const { targetW, targetH } = getTargetExportDimensions(ratio);
+    const elementWidth = element.offsetWidth || 340;
+    
+    // Scale pixelRatio so html-to-image renders the DOM vector tree directly to targetW x targetH
+    const pixelRatio = targetW / elementWidth;
+
+    // Temporarily remove dark mode so dark mode CSS variables or theme classes do not interfere with export
+    const rootEl = document.documentElement;
+    const bodyEl = document.body;
+    const isRootDark = rootEl.classList.contains("dark");
+    const isBodyDark = bodyEl.classList.contains("dark");
+
+    if (isRootDark) rootEl.classList.remove("dark");
+    if (isBodyDark) bodyEl.classList.remove("dark");
+
+    let rawDataUrl = "";
+    let attempts = 3;
+
+    try {
+      while (attempts > 0) {
+        try {
+          rawDataUrl = await toPng(element, {
+            quality: 1.0,
+            pixelRatio: pixelRatio,
+            width: element.offsetWidth,
+            height: element.offsetHeight,
+            backgroundColor: "#FFFFFF",
+            style: {
+              transform: "none",
+              margin: "0",
+              backgroundColor: "#FFFFFF",
+            },
+            filter: (node: Node) => {
+              if (node instanceof HTMLElement) {
+                if (node.getAttribute("data-download-ignore") === "true") {
+                  return false;
+                }
+              }
+              return true;
+            },
+            cacheBust: true,
+          });
+
+          if (rawDataUrl && rawDataUrl.length > 1000) {
+            break;
+          }
+        } catch (retryErr) {
+          console.warn(`toPng attempt failed, retrying... (${attempts} remaining)`, retryErr);
+        }
+        attempts--;
+        if (attempts > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+      }
+    } finally {
+      // Restore dark mode if it was active
+      if (isRootDark) rootEl.classList.add("dark");
+      if (isBodyDark) bodyEl.classList.add("dark");
+    }
+
+    if (!rawDataUrl) {
+      throw new Error("Unable to render image at high resolution.");
+    }
+
+    // Draw onto an exact targetW x targetH HTML5 canvas to guarantee precise output resolution
+    const canvas = document.createElement("canvas");
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to initialize canvas context.");
+    }
+
+    // Fill background with solid white (#FFFFFF) first so there are no transparent/black pixels
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, targetW, targetH);
+
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+        resolve();
+      };
+      img.onerror = (err) => reject(err);
+      img.src = rawDataUrl;
+    });
+
+    const finalDataUrl = canvas.toDataURL("image/png", 1.0);
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((b) => {
+        if (b) resolve(b);
+        else reject(new Error("Canvas toBlob failed"));
+      }, "image/png", 1.0);
+    });
+
+    return { dataUrl: finalDataUrl, blob };
+  };
+
+  const exportElementAtExactResolution = async (
+    element: HTMLElement,
+    ratio: string,
+    filename: string
+  ) => {
+    const { dataUrl } = await renderCardToDataUrlAndBlob(element, ratio);
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = dataUrl;
+    link.click();
+  };
+
+  const handleShareCardImage = async (shayari: Shayari) => {
+    const cardId = `shayari-card-${shayari.id}`;
+    const element = document.getElementById(cardId);
+    if (!element) return;
+
+    try {
+      setSharingCardId(shayari.id);
+      triggerHapticFeedback();
+
+      const ratio = shayari.customRatio || "9:16";
+      const cleanMood = shayari.mood ? shayari.mood.trim().toLowerCase().replace(/\s+/g, "-") : "poetry";
+      const filename = `shayari-${cleanMood}-${shayari.id.slice(0, 8)}.png`;
+
+      const { dataUrl, blob } = await renderCardToDataUrlAndBlob(element, ratio);
+      const file = new File([blob], filename, { type: "image/png" });
+
+      // Direct Web Share API invocation for native Android / mobile share sheet
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        let canShareFiles = false;
+        try {
+          canShareFiles = typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+        } catch {
+          canShareFiles = false;
+        }
+
+        if (canShareFiles || !navigator.canShare) {
+          try {
+            await navigator.share({
+              files: [file],
+            });
+            return;
+          } catch (shareErr: any) {
+            if (shareErr.name === "AbortError") {
+              return; // user dismissed or cancelled the native share sheet
+            }
+            console.warn("Direct native file share failed, falling back to download:", shareErr);
+          }
+        }
+      }
+
+      // If Web Share API is unsupported or failed, directly download the image
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Failed to share card image:", err);
+    } finally {
+      setSharingCardId(null);
+    }
+  };
+
   const handleDownloadImage = async (shayari: Shayari) => {
     const cardId = `shayari-card-${shayari.id}`;
     const element = document.getElementById(cardId);
@@ -3080,59 +3076,11 @@ export default function App() {
       setDownloadingId(shayari.id);
       showToast("Creating your custom card image... 📸");
 
-      // Give a tiny timeout for state and toast feedback to render smoothly
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      const width = element.offsetWidth;
-      const height = element.offsetHeight;
-
-      let dataUrl = "";
-      let attempts = 3;
-      while (attempts > 0) {
-        try {
-          dataUrl = await toPng(element, {
-            quality: 1.0,
-            pixelRatio: 3, // Ultra-sharp print-quality resolution (3x)
-            width: width,
-            height: height,
-            style: {
-              transform: "scale(1)",
-              borderRadius: "32px",
-              width: `${width}px`,
-              height: `${height}px`,
-              margin: "0",
-            },
-            filter: (node: Node) => {
-              if (node instanceof HTMLElement) {
-                if (node.getAttribute("data-download-ignore") === "true") {
-                  return false;
-                }
-              }
-              return true;
-            },
-            cacheBust: true,
-          });
-          if (dataUrl && dataUrl.length > 1000) {
-            break; // success
-          }
-        } catch (retryErr) {
-          console.warn(`toPng attempt failed, retrying... (${attempts} remaining)`, retryErr);
-        }
-        attempts--;
-        if (attempts > 0) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
-        }
-      }
-
-      if (!dataUrl) {
-        throw new Error("Unable to render image after multiple attempts.");
-      }
-
-      const link = document.createElement("a");
+      const ratio = shayari.customRatio || "9:16";
       const cleanMood = shayari.mood ? shayari.mood.trim().toLowerCase().replace(/\s+/g, "-") : "poetry";
-      link.download = `shayari-${cleanMood}-${shayari.id.slice(0, 8)}.png`;
-      link.href = dataUrl;
-      link.click();
+      const filename = `shayari-${cleanMood}-${shayari.id.slice(0, 8)}.png`;
+
+      await exportElementAtExactResolution(element, ratio, filename);
       showToast("Poetry card downloaded! ✨");
     } catch (err) {
       console.error("Failed to export card image:", err);
@@ -3152,62 +3100,64 @@ export default function App() {
 
     try {
       showToast("Creating your custom card image... 📸");
-      await new Promise((resolve) => setTimeout(resolve, 400));
 
-      const width = element.offsetWidth;
-      const height = element.offsetHeight;
-
-      let dataUrl = "";
-      let attempts = 3;
-      while (attempts > 0) {
-        try {
-          dataUrl = await toPng(element, {
-            quality: 1.0,
-            pixelRatio: 3,
-            width: width,
-            height: height,
-            style: {
-              transform: "scale(1)",
-              borderRadius: "32px",
-              width: `${width}px`,
-              height: `${height}px`,
-              margin: "0",
-            },
-            filter: (node: Node) => {
-              if (node instanceof HTMLElement) {
-                if (node.getAttribute("data-download-ignore") === "true") {
-                  return false;
-                }
-              }
-              return true;
-            },
-            cacheBust: true,
-          });
-          if (dataUrl && dataUrl.length > 1000) {
-            break; // success
-          }
-        } catch (retryErr) {
-          console.warn(`toPng preview attempt failed, retrying... (${attempts} remaining)`, retryErr);
-        }
-        attempts--;
-        if (attempts > 0) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
-        }
-      }
-
-      if (!dataUrl) {
-        throw new Error("Unable to render preview image after multiple attempts.");
-      }
-
-      const link = document.createElement("a");
+      const ratio = editedRatio || editingShayari.customRatio || "9:16";
       const cleanMood = editingShayari.mood ? editingShayari.mood.trim().toLowerCase().replace(/\s+/g, "-") : "poetry";
-      link.download = `shayari-${cleanMood}-${editingShayari.id.slice(0, 8)}.png`;
-      link.href = dataUrl;
-      link.click();
+      const filename = `shayari-${cleanMood}-${editingShayari.id.slice(0, 8)}.png`;
+
+      await exportElementAtExactResolution(element, ratio, filename);
       showToast("Custom preview card downloaded! ✨");
     } catch (err) {
       console.error("Failed to export preview card image:", err);
       showToast("Export failed. Please try again.");
+    }
+  };
+
+  const handleSharePreview = async () => {
+    if (!editingShayari) return;
+    const element = document.getElementById("custom-card-preview");
+    if (!element) return;
+
+    try {
+      triggerHapticFeedback();
+
+      const ratio = editedRatio || editingShayari.customRatio || "9:16";
+      const cleanMood = editingShayari.mood ? editingShayari.mood.trim().toLowerCase().replace(/\s+/g, "-") : "poetry";
+      const filename = `shayari-${cleanMood}-${editingShayari.id.slice(0, 8)}.png`;
+
+      const { dataUrl, blob } = await renderCardToDataUrlAndBlob(element, ratio);
+      const file = new File([blob], filename, { type: "image/png" });
+
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        let canShareFiles = false;
+        try {
+          canShareFiles = typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+        } catch {
+          canShareFiles = false;
+        }
+
+        if (canShareFiles || !navigator.canShare) {
+          try {
+            await navigator.share({
+              files: [file],
+            });
+            return;
+          } catch (shareErr: any) {
+            if (shareErr.name === "AbortError") {
+              return;
+            }
+            console.warn("Direct preview file share failed, falling back to download:", shareErr);
+          }
+        }
+      }
+
+      // If Web Share API is unsupported or failed, directly download the image
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Failed to share preview card image:", err);
     }
   };
 
@@ -3259,12 +3209,17 @@ export default function App() {
       const data = await response.json();
       if (data.shayaris && Array.isArray(data.shayaris)) {
         const mappedShayaris = data.shayaris.slice(0, 5).map((s: Shayari) => {
-          const bg = getRandomBgForMood(s.mood || trimmedInput);
           return {
             ...s,
-            customCardStyleBg: bg || undefined,
+            customRatio: "9:16",
+            customTextColor: selectedCardStyleBg ? "text-white" : "text-slate-900",
+            customTextShadow: !!selectedCardStyleBg,
+            customCardStyleBg: undefined,
+            customBgColor: undefined,
             customBgGradient: undefined,
-            customBgTexture: undefined
+            customBgTexture: undefined,
+            customBgOpacity: 1.0,
+            customTextGradient: undefined,
           };
         });
         setGeneratedShayaris(mappedShayaris);
@@ -3286,7 +3241,36 @@ export default function App() {
       if (err?.message?.includes("429") || err?.message?.toLowerCase()?.includes("quota") || err?.message?.includes("RESOURCE_EXHAUSTED")) {
         handleRateLimitError({ error: err.message });
       } else {
-        setError("Failed to generate shayaris. Please try again.");
+        // Graceful fallback from rich anthology so the user is never blocked by network issues
+        const categoryKey = normalizeMoodToCategory(trimmedInput);
+        let matchingShayaris = DEFAULT_SHAYARIS.filter(
+          (s) => s.mood?.toLowerCase() === categoryKey.toLowerCase()
+        );
+        if (matchingShayaris.length < 5) {
+          const others = DEFAULT_SHAYARIS.filter((s) => !matchingShayaris.some((m) => m.id === s.id));
+          matchingShayaris = [...matchingShayaris, ...others];
+        }
+        const fallbackPicks = matchingShayaris.slice(0, 5).map((s, idx) => {
+          let sherText = s.sher;
+          if (selectedLanguage === "hinglish" && s.transliteration) {
+            sherText = s.transliteration;
+          }
+          return {
+            ...s,
+            id: `fallback-${Date.now()}-${idx}`,
+            sher: sherText,
+            title: getShayariTitle(s),
+            customRatio: "9:16",
+            customTextColor: selectedCardStyleBg ? "text-white" : "text-slate-900",
+            customTextShadow: !!selectedCardStyleBg,
+            isAI: false
+          };
+        });
+
+        setGeneratedShayaris(fallbackPicks);
+        setIsOfflineFallback(true);
+        setError(null);
+        showToast("Curated 5 beautiful verses for your mood! ✨");
       }
     } finally {
       setIsLoading(false);
@@ -3294,8 +3278,7 @@ export default function App() {
   };
 
   const handleCopy = (shayari: Shayari) => {
-    const poetLine = shayari.isAI ? "" : `\n- Poet: ${shayari.poet}`;
-    const formattedText = `"${shayari.sher}"${poetLine}\n\nShared via Moody Shayari App ✨`;
+    const formattedText = `"${shayari.sher}"\n\nShared via Moody Shayari App ✨`;
     
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
@@ -3366,563 +3349,117 @@ export default function App() {
     return (
       <div className="flex-1 flex flex-col min-h-0 relative select-none">
         
-        {/* App Title & Header Bar */}
-        <header className="px-3.5 sm:px-4 py-1.5 shrink-0 flex items-center justify-between border-b border-white/15 bg-gradient-to-r from-[#3D0A91] via-[#7B2FF7] to-[#FF2E88] backdrop-blur-md shadow-md sticky top-0 z-30 transition-all duration-300">
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            <div className="w-[38px] h-[38px] sm:w-[42px] sm:h-[42px] rounded-xl bg-white/10 backdrop-blur-md p-0.5 border border-white/25 shrink-0 flex items-center justify-center shadow-[0_0_12px_rgba(255,46,136,0.4)]">
-              <img 
-                src={appLogo} 
-                alt="Moody Shayari Logo" 
-                className="w-full h-full object-cover rounded-lg shadow-xs" 
-                referrerPolicy="no-referrer" 
-              />
-            </div>
-            <div className="flex flex-col justify-center">
-              <h1 className="text-sm sm:text-base font-black tracking-tight font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)] flex items-center gap-1 leading-tight">
-                <span className="text-white">Moody</span>
-                <span className="text-[#FF2E88] font-black drop-shadow-[0_0_8px_rgba(255,46,136,0.6)]">Shayari</span>
-              </h1>
-              <span className="text-[8px] sm:text-[9px] tracking-wider text-white/70 font-medium leading-none">
-                Android Version 2.0
-              </span>
-            </div>
+        {/* App Title & Header Bar (Clean Minimal iOS / ChatGPT / Gemini style App Bar) */}
+        <header className="h-[56px] px-3 sm:px-4 shrink-0 flex items-center justify-between border-b border-[#E5E7EB] dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-30 transition-all duration-300">
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-extrabold tracking-tight font-sans flex items-center gap-1 leading-none">
+              <span className="text-[#111111] dark:text-white">Moody</span>
+              <span className="text-[#FF2D8D]">Shayari</span>
+            </h1>
           </div>
           
-          <div className="flex items-center gap-1.5">
-            <button 
-              onClick={() => {
-                triggerHapticFeedback();
-                handleThemeChange(THEMES[(THEMES.findIndex(t => t.id === currentThemeId) + 1) % THEMES.length].id);
-              }}
-              className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 transition-all text-white border border-white/20 cursor-pointer shadow-xs"
-              title="Rotate Palette"
+          <div className="flex items-center gap-2">
+            {/* Header Share APK Button - 20% smaller width, 10% smaller height */}
+            <button
+              type="button"
+              onClick={handleShareApk}
+              className="h-[28px] px-2.5 bg-gradient-to-r from-[#FF2D8D] to-[#7B2FF7] hover:opacity-95 text-white text-[11px] font-semibold rounded-full flex items-center gap-1 shadow-2xs active:scale-95 transition-all duration-200 cursor-pointer select-none shrink-0"
+              title="Share APK link"
             >
-              <Palette className="w-3.5 h-3.5" />
+              <Share2 className="w-3 h-3 text-white" />
+              <span>Share APK</span>
             </button>
-            <div className="flex items-center gap-1 bg-white/20 backdrop-blur-md border border-white/30 px-2 py-0.5 rounded-full shadow-xs">
-              <Crown className="w-3 h-3 text-amber-300 fill-amber-300 drop-shadow-[0_0_4px_rgba(252,211,77,0.6)]" />
-              <span className="text-[8px] font-mono font-black uppercase text-white tracking-wider">PRO AI</span>
-            </div>
+
+            {/* Download APK Button */}
+            <a
+              href={APK_DOWNLOAD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleDownloadApk}
+              className="h-[28px] px-2.5 bg-gradient-to-r from-[#FF2D8D] to-[#7B2FF7] hover:opacity-95 text-white text-[11px] font-semibold rounded-full flex items-center gap-1 shadow-2xs active:scale-95 transition-all duration-200 cursor-pointer select-none shrink-0"
+            >
+              <Download className="w-3 h-3 text-white" />
+              <span>Download APK</span>
+            </a>
           </div>
         </header>
 
-        {/* Dynamic Inner Tab View */}
-        <div className="flex-1 overflow-y-auto no-scrollbar px-3 sm:px-4 pt-2.5 pb-[calc(76px+env(safe-area-inset-bottom,0px))] space-y-2.5">
-          
-          {activeTab === "generator" && (
-            <div className="space-y-2.5">
-              
-              {/* Single Full-Width Download APK Button */}
-              <motion.a
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                href={APK_DOWNLOAD_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={handleDownloadApk}
-                className="w-full h-[48px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-slate-800 dark:text-slate-100 border border-pink-100 dark:border-slate-800 text-xs sm:text-sm font-bold rounded-[16px] flex items-center justify-center gap-2 shadow-xs hover:shadow-md hover:border-[#FF2E88]/40 active:scale-[0.98] transition-all duration-200 cursor-pointer group select-none"
-              >
-                <Download className="w-4 h-4 text-[#FF2E88] transition-transform group-hover:translate-y-0.5" />
-                <span>Download APK</span>
-              </motion.a>
-
-              {/* Generation card */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`border rounded-[20px] p-4 sm:p-4.5 shadow-[0_10px_28px_rgba(255,46,136,0.07)] space-y-3.5 ${activeTheme.formCardBg} ${activeTheme.cardBorder}`}
-              >
-                <div>
-                  <h2 className={`text-sm sm:text-base font-extrabold ${activeTheme.textColor} tracking-tight flex items-center gap-2`}>
-                    <span>What's on your mind?</span>
-                  </h2>
-                  <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-                    Describe your mood and let AI create beautiful personalized Shayari.
-                  </p>
-                </div>
-
-                <form onSubmit={handleGenerate} className="space-y-3">
-                  <div className="space-y-1">
-                    <div className="relative">
-                      <Sparkles className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#FF2E88] pointer-events-none" />
-                      <input
-                        type="text"
-                        id="mood_input"
-                        value={userInput}
-                        onChange={(e) => {
-                          setUserInput(e.target.value);
-                          if (e.target.value.trim()) setError(null);
-                        }}
-                        placeholder="e.g. rain love, melancholic alone, broken trust, motivation..."
-                        maxLength={150}
-                        className="w-full h-[52px] bg-white/90 dark:bg-slate-950/60 backdrop-blur-md border border-pink-100 dark:border-slate-800 rounded-[16px] pl-10 pr-9 text-xs sm:text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-[#FF2E88]/15 focus:border-[#FF2E88] transition-all duration-200 shadow-2xs"
-                      />
-                      {userInput.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            triggerHapticFeedback();
-                            setUserInput("");
-                          }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all duration-200 cursor-pointer"
-                          title="Clear text"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+        {/* Dynamic Inner View */}
+        {activeTab === "generator" ? (
+          <div className="flex-1 min-h-0 flex flex-col justify-between overflow-hidden relative select-none">
+            
+            {/* Top Fixed Area: Error Banner */}
+            {error && (
+              <div className="shrink-0 px-2.5 sm:px-3 pt-2 z-10">
+                <AnimatePresence>
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    <div className="flex items-center gap-2 p-2.5 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 rounded-xl text-red-700 dark:text-red-400 text-[11px] font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                      <span>{error}</span>
                     </div>
-                    <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 font-medium pl-1">
-                      Example: Love, Rain, Sad, Alone, Motivation...
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* Center Area: Horizontal Swipe Cards or Loading / Welcome */}
+            <div className="flex-1 min-h-0 flex flex-col items-center justify-center relative overflow-hidden py-2 my-auto">
+              
+              {/* Minimal Welcome Placeholder when no results generated yet */}
+              {!isLoading && generatedShayaris.length === 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="py-6 px-4 text-center space-y-3 select-none max-w-sm mx-auto"
+                >
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FF2E88]/15 to-[#7B2FF7]/15 flex items-center justify-center mx-auto text-[#FF2E88] border border-[#FF2E88]/20 shadow-xs">
+                    <Sparkles className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Type your mood to generate Shayari</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                      Express yourself with <span className="text-[#FF2E88] font-semibold">Love, Rain, Sad, Motivation</span> or any custom emotion in the composer below.
                     </p>
                   </div>
-
-                  {/* Premium Compact Customization Toolbar */}
-                  <div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          triggerHapticFeedback();
-                          setActiveToolbarPanel(activeToolbarPanel === "textStyle" ? null : "textStyle");
-                        }}
-                        className={`h-[52px] px-2 rounded-[16px] border text-[15px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer ${
-                          activeToolbarPanel === "textStyle"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-md scale-[1.01]`
-                            : `bg-white/90 dark:bg-slate-900/90 backdrop-blur-md ${activeTheme.textColor} border-pink-100/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs hover:shadow-xs`
-                        }`}
-                      >
-                        <Palette className={`w-5 h-5 shrink-0 ${activeToolbarPanel === "textStyle" ? "text-white" : "text-[#FF2E88]"}`} />
-                        <span>Text Style</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          triggerHapticFeedback();
-                          setActiveToolbarPanel(activeToolbarPanel === "language" ? null : "language");
-                        }}
-                        className={`h-[52px] px-2 rounded-[16px] border text-[15px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer ${
-                          activeToolbarPanel === "language"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-md scale-[1.01]`
-                            : `bg-white/90 dark:bg-slate-900/90 backdrop-blur-md ${activeTheme.textColor} border-pink-100/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs hover:shadow-xs`
-                        }`}
-                      >
-                        <Languages className={`w-5 h-5 shrink-0 ${activeToolbarPanel === "language" ? "text-white" : "text-[#FF2E88]"}`} />
-                        <span>Language</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          triggerHapticFeedback();
-                          setActiveToolbarPanel(activeToolbarPanel === "weight" ? null : "weight");
-                        }}
-                        className={`h-[52px] px-2 rounded-[16px] border text-[15px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer ${
-                          activeToolbarPanel === "weight"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-md scale-[1.01]`
-                            : `bg-white/90 dark:bg-slate-900/90 backdrop-blur-md ${activeTheme.textColor} border-pink-100/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs hover:shadow-xs`
-                        }`}
-                      >
-                        <Type className={`w-5 h-5 shrink-0 ${activeToolbarPanel === "weight" ? "text-white" : "text-[#FF2E88]"}`} />
-                        <span>Weight</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          triggerHapticFeedback();
-                          setActiveToolbarPanel(activeToolbarPanel === "cardStyle" ? null : "cardStyle");
-                        }}
-                        className={`h-[52px] px-2 rounded-[16px] border text-[15px] font-semibold flex items-center justify-center gap-1.5 transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer ${
-                          activeToolbarPanel === "cardStyle"
-                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-md scale-[1.01]`
-                            : `bg-white/90 dark:bg-slate-900/90 backdrop-blur-md ${activeTheme.textColor} border-pink-100/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs hover:shadow-xs`
-                        }`}
-                      >
-                        <ImageIcon className={`w-5 h-5 shrink-0 ${activeToolbarPanel === "cardStyle" ? "text-white" : "text-[#FF2E88]"}`} />
-                        <span>Card Style</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Smooth Expandable Panels */}
-                  <AnimatePresence mode="wait">
-                    {activeToolbarPanel && (
-                      <motion.div
-                        key={activeToolbarPanel}
-                        initial={{ opacity: 0, height: 0, y: -5 }}
-                        animate={{ opacity: 1, height: "auto", y: 0 }}
-                        exit={{ opacity: 0, height: 0, y: -5 }}
-                        transition={{ duration: 0.25, ease: "easeInOut" }}
-                        className={`overflow-hidden border rounded-2xl p-3 space-y-2.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-xs ${activeTheme.cardBorder}`}
-                      >
-                        {activeToolbarPanel === "textStyle" && (() => {
-                          const filteredFonts = FONTS.filter((font) =>
-                            font.name.toLowerCase().includes(fontSearchQuery.toLowerCase()) ||
-                            font.id.toLowerCase().includes(fontSearchQuery.toLowerCase())
-                          );
-                          const recentFontsList = FONTS.filter((font) => recentlyUsedFonts.includes(font.id));
-
-                          return (
-                            <div className="space-y-2">
-                              {/* Search bar */}
-                              <div className="relative">
-                                <input
-                                  type="text"
-                                  value={fontSearchQuery}
-                                  onChange={(e) => setFontSearchQuery(e.target.value)}
-                                  placeholder="Search font (e.g. Garamond, Calligraphy, Devanagari)..."
-                                  className={`w-full bg-white/70 dark:bg-slate-950/40 border rounded-lg pl-7 pr-7 py-1 text-[10px] text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none transition-all ${activeTheme.inputFocus} ${activeTheme.cardBorder}`}
-                                />
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
-                                {fontSearchQuery && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setFontSearchQuery("")}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer text-[9px]"
-                                  >
-                                    ✕
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Recently Used Fonts */}
-                              {recentFontsList.length > 0 && !fontSearchQuery && (
-                                <div className="space-y-1">
-                                  <div className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                                    Recently Used
-                                  </div>
-                                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-                                    {recentFontsList.map((font) => {
-                                      const isSelected = selectedFont === font.id;
-                                      return (
-                                        <button
-                                          key={`recent-${font.id}`}
-                                          type="button"
-                                          onClick={() => handleFontChange(font.id)}
-                                          className={`px-2 py-0.5 rounded-md border text-[9px] cursor-pointer transition-all shrink-0 ${
-                                            isSelected
-                                              ? `bg-gradient-to-r ${activeTheme.buttonGrad} border-transparent text-white font-semibold`
-                                              : `bg-white/80 dark:bg-slate-950/30 border-slate-200/40 dark:border-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-50`
-                                          }`}
-                                        >
-                                          <span className={font.class}>{font.name}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Font options list */}
-                              <div className="space-y-1">
-                                <div className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                                  All Fonts ({filteredFonts.length})
-                                </div>
-                                <div className="flex flex-row flex-nowrap gap-1.5 overflow-x-auto py-1 px-1 border border-slate-100/60 dark:border-slate-800/60 rounded-xl bg-white/40 dark:bg-slate-950/20 no-scrollbar w-full scroll-smooth">
-                                  {filteredFonts.map((font) => {
-                                    const isSelected = selectedFont === font.id;
-                                    return (
-                                      <button
-                                        key={font.id}
-                                        type="button"
-                                        onClick={() => handleFontChange(font.id)}
-                                        className={`p-1 px-1.5 rounded-lg border text-left cursor-pointer transition-all duration-200 flex flex-col justify-between h-[34px] min-h-[34px] w-[80px] min-w-[80px] max-w-[86px] shrink-0 ${
-                                          isSelected
-                                            ? `bg-gradient-to-r ${activeTheme.buttonGrad} border-transparent text-white shadow-xs scale-[1.01]`
-                                            : `bg-white/90 dark:bg-slate-950/50 border-slate-200/55 dark:border-slate-800/55 hover:border-slate-300 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800`
-                                        }`}
-                                      >
-                                        <span className={`text-[6px] font-mono tracking-tight font-bold uppercase line-clamp-1 ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
-                                          {font.name}
-                                        </span>
-                                        <span className={`text-[8px] mt-0.5 line-clamp-1 block leading-none font-medium ${font.class}`}>
-                                          ग़ज़ल Aa
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              {/* Selected Live Preview */}
-                              <div className="text-center py-1 px-2 rounded bg-white/50 dark:bg-slate-950/20 border border-slate-100/40 dark:border-slate-800/40">
-                                <span className={`text-[9px] leading-tight block ${activeFontConfig.class} ${shayariFontWeightClass} ${activeTheme.textColor}`}>
-                                  धड़कन, एहसास, ग़ज़ल और शायरी... (Selected Preview)
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {activeToolbarPanel === "language" && (
-                          <div className="flex gap-1.5">
-                            {[
-                              { id: "hindi", name: "Hindi (हिन्दी)", desc: "Devanagari script" },
-                              { id: "urdu", name: "Urdu (اردो)", desc: "Urdu script style" },
-                              { id: "hinglish", name: "Hinglish", desc: "Roman script" }
-                            ].map((lang) => {
-                              const isSelected = selectedLanguage === lang.id;
-                              return (
-                                <button
-                                  key={lang.id}
-                                  type="button"
-                                  onClick={() => handleLanguageChange(lang.id as any)}
-                                  className={`flex-1 py-1 px-1 rounded-xl text-[9px] text-center cursor-pointer transition-all border flex flex-col justify-center items-center ${
-                                    isSelected
-                                      ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-xs font-semibold`
-                                      : `bg-white/80 dark:bg-slate-900/80 ${activeTheme.iconColor} border-slate-200/40 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800 ${activeTheme.cardBorder}`
-                                  }`}
-                                >
-                                  <span className="font-bold">{lang.name}</span>
-                                  <span className={`text-[6px] mt-0.5 opacity-80 leading-none ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
-                                    {lang.desc}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {activeToolbarPanel === "weight" && (
-                          <div className="flex bg-slate-100/60 dark:bg-slate-950/40 rounded-xl p-0.5 border border-slate-200/40 dark:border-slate-800/40">
-                            {(["normal", "bold"] as const).map((weight) => {
-                              const isSelected = fontWeight === weight;
-                              return (
-                                <button
-                                  key={weight}
-                                  type="button"
-                                  onClick={() => handleFontWeightChange(weight)}
-                                  className={`flex-1 py-1 rounded-lg text-[9px] font-bold capitalize transition-all cursor-pointer ${
-                                    isSelected
-                                      ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white shadow-xs`
-                                      : `text-slate-500 hover:text-slate-800 dark:hover:text-slate-200`
-                                  }`}
-                                >
-                                  {weight}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {activeToolbarPanel === "cardStyle" && (
-                          <div className="space-y-3 py-2 animate-fade-in">
-                            {/* Panel Header */}
-                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
-                                  Premium Card Styles
-                                </span>
-                                <span className="text-[8px] bg-indigo-500/10 text-indigo-500 font-bold px-1.5 py-0.5 rounded-full">
-                                  {loadedCardStyles.length} Styles
-                                </span>
-                              </div>
-                              {selectedCardStyleBg && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedCardStyleBg(null);
-                                    localStorage.removeItem("mood_shayari_selected_card_style_bg");
-                                    showToast("Reset card background to original!");
-                                  }}
-                                  className="text-[9px] font-bold text-rose-500 hover:text-rose-600 cursor-pointer flex items-center gap-1 transition-colors"
-                                >
-                                  <span>Reset Theme</span>
-                                </button>
-                              )}
-                            </div>
-                            
-                            {/* Category Filter Tabs */}
-                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1.5 scroll-smooth select-none">
-                              {["All", "❤️ Love", "💔 Sad", "🥀 Broken", "😎 Attitude", "🧑‍🦲 Alone", "🤝 Friendship", "🔥 Motivational", "🌙 Islamic", "🌱 Life", "🌧️ Rain", "🌿 Nature", "😊 Happy", "🏆 Success", "🤝 Trust", "👨‍👩‍👧 Family", "💌 Miss You", "💖 Romantic", "🩹 Pain", "🕊️ Hope", "🎉 Festival"].map((cat) => {
-                                const isCatSelected = selectedCategory === cat;
-                                return (
-                                  <button
-                                    key={cat}
-                                    type="button"
-                                    onClick={() => setSelectedCategory(cat)}
-                                    className={`px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap cursor-pointer transition-all border ${
-                                      isCatSelected
-                                        ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white shadow-xs"
-                                        : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-150 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850"
-                                    }`}
-                                  >
-                                    {cat}
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            {/* Card Style Image Thumbnails */}
-                            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1 pt-0.5 scroll-smooth select-none min-h-[76px]">
-                              {/* Default / Reset Thumbnail Option */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedCardStyleBg(null);
-                                  localStorage.removeItem("mood_shayari_selected_card_style_bg");
-                                  showToast("Using original theme colors!");
-                                }}
-                                className={`w-14 h-14 min-w-[56px] rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 ${
-                                  !selectedCardStyleBg
-                                    ? "border-indigo-500 bg-indigo-50/30 dark:bg-indigo-950/20"
-                                    : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50"
-                                }`}
-                              >
-                                <span className="text-[16px]">🎨</span>
-                                <span className="text-[7px] font-bold text-slate-500 dark:text-slate-400 leading-none mt-1">Default</span>
-                              </button>
-
-                              {isLoadingStyles ? (
-                                <div className="flex items-center gap-2 text-[10px] text-slate-400 italic py-2">
-                                  <span className="w-3.5 h-3.5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></span>
-                                  Loading premium styles...
-                                </div>
-                              ) : (() => {
-                                const filteredStyles = loadedCardStyles.filter((stylePath) => matchesCategory(stylePath, selectedCategory));
-
-                                if (filteredStyles.length === 0) {
-                                  return (
-                                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold italic py-4 px-2">
-                                      No Card Styles Available
-                                    </div>
-                                  );
-                                }
-
-                                return filteredStyles.map((stylePath) => {
-                                  const isSelected = selectedCardStyleBg === stylePath;
-                                  const { cleanName } = getCategoryAndName(stylePath);
-                                  
-                                  return (
-                                    <button
-                                      key={stylePath}
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedCardStyleBg(stylePath);
-                                        localStorage.setItem("mood_shayari_selected_card_style_bg", stylePath);
-                                        showToast(`${cleanName} style applied!`);
-                                      }}
-                                      className={`w-14 h-14 min-w-[56px] rounded-xl border-2 overflow-hidden cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-xs relative flex items-center justify-center bg-slate-100 dark:bg-slate-950 ${
-                                        isSelected
-                                          ? "border-indigo-500 ring-2 ring-indigo-500/20"
-                                          : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
-                                      }`}
-                                      title={cleanName}
-                                    >
-                                      <img
-                                        src={stylePath}
-                                        alt={cleanName}
-                                        className="w-full h-full object-cover"
-                                        referrerPolicy="no-referrer"
-                                        onError={(e) => {
-                                          e.currentTarget.style.display = "none";
-                                          const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
-                                          if (placeholder) placeholder.classList.remove("hidden");
-                                        }}
-                                      />
-                                      <div className="hidden w-full h-full bg-slate-800 dark:bg-slate-900 flex flex-col items-center justify-center p-1 text-center select-none">
-                                        <span className="text-[12px]">🎨</span>
-                                        <span className="text-[6px] font-bold text-slate-300 truncate max-w-full">{cleanName}</span>
-                                      </div>
-                                      <div className="absolute bottom-0 inset-x-0 bg-black/60 py-0.5 text-[6px] font-black text-white text-center truncate px-0.5">
-                                        {cleanName}
-                                      </div>
-                                      {isSelected && (
-                                        <div className="absolute inset-0 bg-indigo-600/10 flex items-center justify-center">
-                                          <div className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                                            <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                          </div>
-                                        </div>
-                                      )}
-                                    </button>
-                                  );
-                                });
-                              })()}
-                            </div>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Form Error Container */}
-                  <AnimatePresence>
-                    {error && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                      >
-                        <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-100 rounded-xl text-red-700 text-[11px] font-medium">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
-                          <span>{error}</span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading || isGenerateDisabledBy429}
-                    onClick={triggerHapticFeedback}
-                    className="w-full h-[54px] bg-gradient-to-r from-[#FF2E88] to-[#7B2FF7] text-white text-sm sm:text-base font-extrabold rounded-[16px] flex items-center justify-center gap-2 shadow-[0_8px_25px_rgba(255,46,136,0.35)] hover:shadow-[0_12px_30px_rgba(255,46,136,0.45)] hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 disabled:opacity-80 disabled:cursor-not-allowed cursor-pointer group"
-                  >
-                    <Sparkles className="w-5 h-5 text-amber-300 animate-pulse group-hover:rotate-12 transition-transform" />
-                    <span>
-                      {isLoading 
-                        ? "Weaving Classic Poetry..." 
-                        : isGenerateDisabledBy429 
-                        ? `Please wait (${generateDisableCountdown}s)` 
-                        : "Weave Custom Shayari"}
-                    </span>
-                  </button>
-                </form>
-              </motion.div>
+                </motion.div>
+              )}
 
               {/* Loading display */}
               {isLoading && (
-                <div className="py-16 text-center space-y-4">
+                <div className="py-12 text-center space-y-4">
                   <div className="relative flex items-center justify-center">
                     <div className={`w-12 h-12 border-2 rounded-full animate-spin ${activeTheme.spinnerBorder}`} />
                     <Sparkles className={`w-4 h-4 absolute animate-pulse ${activeTheme.spinnerIcon}`} />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-slate-800 tracking-wide">Weaving poetry matching your heart...</p>
-                    <p className="text-[10px] text-slate-400 italic">"Lafz hi to hain jo dil ko chhu lete hain"</p>
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 tracking-wide">Weaving poetry matching your heart...</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 italic">"Lafz hi to hain jo dil ko chhu lete hain"</p>
                   </div>
                 </div>
               )}
 
-              {/* Redesigned Premium Glass Cards Results Section */}
+              {/* Horizontal Swipe Cards Carousel */}
               {!isLoading && generatedShayaris.length > 0 && (
-                <div className="space-y-5" id="shayari_list">
-                  <div className="flex items-center justify-between px-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        Your Custom Poetry Collection
-                      </h3>
-                    </div>
-                    {isOfflineFallback && (
-                      <span className="text-[8px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                        Traditional Gems
-                      </span>
-                    )}
-                  </div>
-
-                  {isOfflineFallback && (
-                    <div className="bg-amber-50/70 border border-amber-200/50 rounded-xl p-3 text-amber-900 text-[10px] flex gap-2 shadow-3xs leading-relaxed">
-                      <Info className="w-4 h-4 shrink-0 text-amber-600" />
-                      <span>
-                        <strong className="font-bold text-amber-950">System Notice:</strong> High traffic detected. Presenting curated traditional masterpieces matching your mood!
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="space-y-5">
-                    {generatedShayaris.map((shayari, index) => {
+                <div 
+                  className="w-full flex items-center gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar px-[7%] py-1 scroll-smooth select-none"
+                  onScroll={(e) => {
+                    const container = e.currentTarget;
+                    const scrollLeft = container.scrollLeft;
+                    const firstChild = container.firstElementChild as HTMLElement;
+                    if (firstChild) {
+                      const cardWidth = firstChild.offsetWidth + 12;
+                      const idx = Math.round(scrollLeft / cardWidth);
+                      if (idx >= 0 && idx < generatedShayaris.length && idx !== activeCardIndex) {
+                        setActiveCardIndex(idx);
+                      }
+                    }
+                  }}
+                >
+                  {generatedShayaris.map((shayari, index) => {
                       const isSaved = savedShayaris.some(s => s.sher === shayari.sher);
                       const { bgClass, style: bgStyle } = getCardBgStyleAndClass(
                         shayari.customBgGradient,
@@ -3930,28 +3467,56 @@ export default function App() {
                         shayari.customBgColor,
                         activeTheme.cardBg
                       );
-                      const styleBg = shayari.customCardStyleBg || selectedCardStyleBg;
-                      const hasExplicitGradientOrTexture = shayari.isCustomized && (!!shayari.customBgGradient || !!shayari.customBgTexture);
-                      const effectiveStyleBg = hasExplicitGradientOrTexture ? undefined : styleBg;
-                      const finalCardBgStyle = {
-                        ...bgStyle,
-                        ...(effectiveStyleBg ? {
-                          backgroundImage: `url("${effectiveStyleBg}")`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                          backgroundRepeat: "no-repeat"
-                        } : {})
+                      const currentCardStyleBg = shayari.customCardStyleBg !== undefined
+                        ? shayari.customCardStyleBg
+                        : (selectedCardStyleBg || "");
+
+                      const finalCardBgStyle: React.CSSProperties = {
+                        borderRadius: "28px",
+                        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
+                        border: "1px solid #F1F5F9",
                       };
-                      const textClass = shayari.customTextColor || "text-slate-900";
+
+                      if (currentCardStyleBg && !shayari.customBgGradient && !shayari.customBgColor) {
+                        finalCardBgStyle.backgroundImage = `url("${formatCardBgUrl(currentCardStyleBg)}")`;
+                        finalCardBgStyle.backgroundSize = "cover";
+                        finalCardBgStyle.backgroundPosition = "center";
+                        finalCardBgStyle.backgroundRepeat = "no-repeat";
+                      } else if (shayari.customBgGradient) {
+                        if (shayari.customBgGradient.includes("gradient")) {
+                          finalCardBgStyle.backgroundImage = shayari.customBgGradient;
+                        } else {
+                          finalCardBgStyle.backgroundImage = convertTailwindGradientToCss(shayari.customBgGradient);
+                        }
+                      } else if (shayari.customBgColor) {
+                        if (shayari.customBgColor.startsWith("#") || shayari.customBgColor.startsWith("rgb") || shayari.customBgColor.startsWith("hsl")) {
+                          finalCardBgStyle.backgroundColor = shayari.customBgColor;
+                        } else {
+                          finalCardBgStyle.backgroundColor = solidsMap[shayari.customBgColor] || resolveTailwindColor(shayari.customBgColor.replace("bg-", "")) || "#FFFFFF";
+                        }
+                      } else {
+                        finalCardBgStyle.backgroundColor = "#FFFFFF";
+                      }
+
+                      const isLightCardBg = !shayari.customBgGradient?.includes("950") && 
+                                            !shayari.customBgGradient?.includes("900") && 
+                                            !shayari.customBgGradient?.includes("black") && 
+                                            !shayari.customBgColor?.includes("slate-9") && 
+                                            !shayari.customBgColor?.includes("zinc-9") && 
+                                            !shayari.customBgColor?.includes("black");
+
+                      const textClass = (isLightCardBg && (!shayari.customTextColor || shayari.customTextColor === "text-white" || shayari.customTextColor === "text-slate-100")) 
+                        ? "text-[#111111]" 
+                        : (shayari.customTextColor || "text-[#111111]");
                       const sizeClass = shayari.customTextSize || "text-2xl";
                       const fontClass = shayari.customFontClass || activeFontConfig.class;
                       const weightClass = (shayari.customIsBold !== undefined ? shayari.customIsBold : fontWeight === "bold")
                         ? "!font-bold"
                         : "!font-normal";
-                      const emojiVal = shayari.customEmoji || getMoodEmoji(shayari.mood);
+                      const emojiVal = shayari.customEmoji || getMoodEmoji(shayari.mood, shayari.sher);
 
                       const cardSpecs = getAutoAdjustedCardSpecs(
-                        (shayari.customRatio || "1:1") as any,
+                        (shayari.customRatio || "9:16") as any,
                         sizeClass,
                         shayari.sher,
                         !shayari.isAI && !!shayari.poet,
@@ -3964,20 +3529,33 @@ export default function App() {
                       );
 
                       return (
-                        <motion.div
+                        <div
                           key={shayari.id || index}
-                          id={`shayari-card-${shayari.id}`}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.5, delay: index * 0.1 }}
-                          style={{ containerType: "size", ...cardSpecs.cardVariables, ...cardSpecs.cardStyle, ...finalCardBgStyle }}
-                          className={`shayari-card relative group overflow-hidden rounded-[32px] ${cardSpecs.paddingClass} backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.03)] ${bgClass} border ${activeTheme.cardBorder} ${activeTheme.cardBorderHover} transition-all duration-500 flex flex-col justify-center items-center ${
-                            shayari.customRatio === "4:5" ? "aspect-[4/5]" :
-                            shayari.customRatio === "9:16" ? "aspect-[9/16]" :
-                            shayari.customRatio === "16:9" ? "aspect-[16/9]" :
-                            "aspect-square"
-                          }`}
+                          className="w-[86vw] max-w-[360px] shrink-0 snap-center flex flex-col justify-center items-center py-0.5 transition-all duration-300"
                         >
+                          <motion.div
+                            id={`shayari-card-${shayari.id}`}
+                            initial={{ opacity: 0, scale: 0.96 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.25 }}
+                            style={{
+                              containerType: "size",
+                              backgroundColor: "#FFFFFF",
+                              ...cardSpecs.cardVariables,
+                              ...cardSpecs.cardStyle,
+                            }}
+                            className={`shayari-card relative group overflow-hidden rounded-[28px] ${cardSpecs.paddingClass} transition-all duration-500 flex flex-col justify-center items-center w-full max-h-[72vh] ${
+                              shayari.customRatio === "4:5" ? "aspect-[4/5]" :
+                              shayari.customRatio === "16:9" ? "aspect-[16/9]" :
+                              shayari.customRatio === "1:1" ? "aspect-square" :
+                              "aspect-[9/16]"
+                            }`}
+                          >
+                          {/* Background Layer with Opacity */}
+                          <div 
+                            style={{ ...finalCardBgStyle, opacity: shayari.customBgOpacity ?? 1.0 }} 
+                            className="absolute inset-0 z-0 pointer-events-none" 
+                          />
                           {/* Texture overlay */}
                           {shayari.customBgTexture && getTextureOverlayWithFallback(shayari.customBgTexture)}
 
@@ -4018,39 +3596,30 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* Card top bar: actions & badges */}
-                          <div className={`absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 border-b ${activeTheme.cardBorder} z-20`} data-download-ignore="true">
-                            <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Card top bar: actions & clean card number */}
+                          <div className={`absolute top-0 left-0 right-0 flex items-center justify-between px-3.5 py-2 border-b ${activeTheme.cardBorder} z-20`} data-download-ignore="true">
+                            <div className="flex items-center">
                               <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-lg border ${activeTheme.tagClassic} shadow-3xs`}>
                                 #{index + 1 < 10 ? `0${index + 1}` : index + 1}
-                              </span>
-                              {shayari.isAI ? (
-                                <span className={`text-[8px] font-extrabold ${activeTheme.tagAi} px-2 py-0.5 rounded-full uppercase tracking-wider border transition-all duration-300`}>
-                                  ✨ AI Original
-                                </span>
-                              ) : (
-                                <span className={`text-[8px] font-extrabold ${activeTheme.tagClassic} px-2 py-0.5 rounded-full uppercase tracking-wider border transition-all duration-300`}>
-                                  📜 Masterpiece
-                                </span>
-                              )}
-                              <span className={`text-[8px] ${activeTheme.tagMood} px-2 py-0.5 rounded-full font-sans font-bold uppercase tracking-wider flex items-center gap-0.5 shadow-3xs border`}>
-                                <span>{emojiVal}</span>
-                                <span>{shayari.mood || "Poetry"}</span>
                               </span>
                             </div>
 
                             {/* Actions layout */}
                             <div className="flex items-center gap-1.5 animate-fade-in" data-download-ignore="true">
-                              {/* Move Text Action */}
+                              {/* Move & Edit Text Action */}
                               <button
                                 data-move-button="true"
-                                onClick={() => setActiveMoveTextId(activeMoveTextId === shayari.id ? null : shayari.id)}
+                                onClick={() => {
+                                  triggerHapticFeedback();
+                                  const isActivating = activeMoveTextId !== shayari.id;
+                                  setActiveMoveTextId(isActivating ? shayari.id : null);
+                                }}
                                 className={`p-1.5 rounded-full border transition-all duration-300 cursor-pointer ${
                                   activeMoveTextId === shayari.id
                                     ? "bg-amber-100 border-amber-300 text-amber-700 font-extrabold scale-105"
                                     : `bg-white/60 ${activeTheme.cardBorder} ${activeTheme.iconColor} hover:text-amber-600 hover:bg-amber-50/50`
                                 }`}
-                                title="Move & Resize Text"
+                                title="Move, Resize & Edit Shayari"
                               >
                                 <Move className="w-3.5 h-3.5" />
                               </button>
@@ -4075,17 +3644,22 @@ export default function App() {
                                 <Download className="w-3.5 h-3.5" />
                               </button>
 
-                              {/* Save Heart Button */}
+                              {/* Share Card Action */}
                               <button
-                                onClick={() => toggleSaveShayari(shayari)}
+                                onClick={() => handleShareCardImage(shayari)}
+                                disabled={sharingCardId === shayari.id}
                                 className={`p-1.5 rounded-full border transition-all duration-300 cursor-pointer ${
-                                  isSaved
-                                    ? "bg-red-50 border-red-100 text-red-500"
-                                    : `bg-white/60 ${activeTheme.cardBorder} ${activeTheme.iconColor} hover:text-red-500 hover:bg-red-50/50`
+                                  sharingCardId === shayari.id
+                                    ? "bg-purple-100 border-purple-300 text-purple-700 font-bold scale-105"
+                                    : `bg-white/60 ${activeTheme.cardBorder} ${activeTheme.iconColor} hover:text-purple-600 hover:bg-purple-50/50`
                                 }`}
-                                title="Favorite"
+                                title="Share Shayari Card"
                               >
-                                <Heart className={`w-3.5 h-3.5 ${isSaved ? "fill-red-500" : ""}`} />
+                                {sharingCardId === shayari.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                                ) : (
+                                  <Share2 className="w-3.5 h-3.5" />
+                                )}
                               </button>
                               
                               {/* Copy Action */}
@@ -4155,29 +3729,24 @@ export default function App() {
 
                           {/* Shayari Core Verses - Redesigned with Oversized Premium font */}
                           <div 
-                            className="w-full flex flex-col items-center justify-center relative z-10 py-1"
+                            className="w-full flex flex-col items-center justify-center relative z-10 box-border"
                             style={{ ...cardSpecs.innerWrapperStyle }}
                           >
-                            {/* Centered Emoji Icon Element */}
-                            {!shayari.customHideEmoji && (
-                              <div 
-                                className={`${cardSpecs.emojiMarginClass} flex items-center justify-center`}
-                                style={{ ...cardSpecs.emojiContainerStyle }}
-                              >
-                                <span 
-                                  className={`${cardSpecs.emojiClass} filter drop-shadow-sm select-none`}
-                                  style={{ ...cardSpecs.emojiStyle }}
-                                >
-                                  {emojiVal}
-                                </span>
-                              </div>
-                            )}
+                            {/* Emotional Title with Automatic Resizing & Safe Horizontal Padding */}
+                            <ShayariCardTitle
+                              title={getShayariTitle(shayari)}
+                              ratio={shayari.customRatio || "9:16"}
+                              isLightBg={isLightCardBg}
+                              textColor={textClass}
+                              hasTextShadow={!!shayari.customTextShadow}
+                            />
 
                             {/* Urdu / Hindi Script text - Spaced naturally with our dynamic paragraph gap system */}
                             <PoetryMoveResizeWrapper
                               shayari={shayari}
                               isActive={activeMoveTextId === shayari.id}
                               onSave={handleSaveMoveResize}
+                              onUpdateText={updateShayariText}
                               onClose={() => setActiveMoveTextId(null)}
                             >
                               <div 
@@ -4191,7 +3760,7 @@ export default function App() {
                                   shayari.sher,
                                   shayari.customAnimation || "none",
                                   0, // no trigger for saved cards except normal render
-                                  shayari.customHighlightKeywords || false,
+                                  shayari.customHighlightKeywords !== undefined ? shayari.customHighlightKeywords : true,
                                   textClass,
                                   shayari.customHighlightColor,
                                   cardSpecs.fontSizeClass,
@@ -4199,26 +3768,27 @@ export default function App() {
                                   cardSpecs.containerClass,
                                   fontClass,
                                   weightClass,
-                                  cardSpecs.textStyle,
-                                  shayari.customTextShadow ? "0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3)" : undefined
+                                  {
+                                    ...cardSpecs.textStyle,
+                                    ...(shayari.customTextGradient ? {
+                                      backgroundImage: shayari.customTextGradient,
+                                      WebkitBackgroundClip: "text",
+                                      WebkitTextFillColor: "transparent",
+                                      color: "transparent"
+                                    } : {})
+                                  },
+                                  shayari.customTextShadow ? "0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3)" : undefined,
+                                  "normal",
+                                  0.5,
+                                  3.0,
+                                  true,
+                                  shayari.customHideEmoji,
+                                  emojiVal,
+                                  shayari.mood,
+                                  shayari.highlights
                                 )}
                               </div>
                             </PoetryMoveResizeWrapper>
-
-                            {/* Poet Detail */}
-                            {!shayari.isAI && shayari.poet && (
-                              <div 
-                                className={`${cardSpecs.poetMarginClass} flex items-center justify-center`}
-                                style={{ ...cardSpecs.poetContainerStyle }}
-                              >
-                                <span 
-                                  className={`text-[8px] font-mono tracking-wider ${activeTheme.poetTag} px-3 py-1 rounded-full uppercase shadow-3xs border`}
-                                  style={{ ...cardSpecs.poetStyle }}
-                                >
-                                  Poet: <span className={`font-sans font-extrabold ${activeTheme.poetBold}`}>{shayari.poet}</span>
-                                </span>
-                              </div>
-                            )}
                           </div>
 
                           {/* Subtle watermark inside poetry card */}
@@ -4235,26 +3805,18 @@ export default function App() {
                             shayari.customWatermarkEnabled
                           )}
                         </motion.div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Empty state when no generated shayaris exist */}
-              {!isLoading && generatedShayaris.length === 0 && (
-                <div className={`text-center py-16 px-6 border border-dashed rounded-[24px] ${activeTheme.cardBorder} ${activeTheme.subCardBg} backdrop-blur-xs`}>
-                  <div className={`w-12 h-12 rounded-full ${activeTheme.iconBg} border ${activeTheme.cardBorder} flex items-center justify-center mx-auto mb-4`}>
-                    <Sparkles className={`w-5 h-5 ${activeTheme.iconColor}`} />
-                  </div>
-                  <h3 className={`text-xs font-bold mb-1 ${activeTheme.textColor}`}>Your personalized anthology is waiting</h3>
-                  <p className="text-[10px] text-slate-400 max-w-xs mx-auto leading-normal">
-                    Describe your emotions above (e.g. parting rain, nostalgic friendship) and watch your classical compilation appear in beautiful glass cards.
-                  </p>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          )}
+
+            {/* Bottom spacer for fixed composer bar */}
+            <div className="shrink-0 h-[105px]" />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto no-scrollbar px-3 sm:px-4 pt-2.5 pb-20 space-y-2.5">
 
           {activeTab === "saved" && (
             <div className="space-y-5">
@@ -4302,28 +3864,55 @@ export default function App() {
                       shayari.customBgColor,
                       activeTheme.cardBg
                     );
-                    const styleBg = shayari.customCardStyleBg || selectedCardStyleBg;
-                    const hasExplicitGradientOrTexture = shayari.isCustomized && (!!shayari.customBgGradient || !!shayari.customBgTexture);
-                    const effectiveStyleBg = hasExplicitGradientOrTexture ? undefined : styleBg;
-                    const finalCardBgStyle = {
-                      ...bgStyle,
-                      ...(effectiveStyleBg ? {
-                        backgroundImage: `url("${effectiveStyleBg}")`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        backgroundRepeat: "no-repeat"
-                      } : {})
+                    const savedStyleBg = shayari.customCardStyleBg !== undefined
+                      ? shayari.customCardStyleBg
+                      : (selectedCardStyleBg || "");
+
+                    const finalCardBgStyle: React.CSSProperties = {
+                      borderRadius: "28px",
+                      boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
+                      border: "1px solid #F1F5F9",
                     };
-                    const textClass = shayari.customTextColor || "text-slate-900";
+
+                    if (savedStyleBg && !shayari.customBgGradient && !shayari.customBgColor) {
+                      finalCardBgStyle.backgroundImage = `url("${formatCardBgUrl(savedStyleBg)}")`;
+                      finalCardBgStyle.backgroundSize = "cover";
+                      finalCardBgStyle.backgroundPosition = "center";
+                      finalCardBgStyle.backgroundRepeat = "no-repeat";
+                    } else if (shayari.customBgGradient) {
+                      if (shayari.customBgGradient.includes("gradient")) {
+                        finalCardBgStyle.backgroundImage = shayari.customBgGradient;
+                      } else {
+                        finalCardBgStyle.backgroundImage = convertTailwindGradientToCss(shayari.customBgGradient);
+                      }
+                    } else if (shayari.customBgColor) {
+                      if (shayari.customBgColor.startsWith("#") || shayari.customBgColor.startsWith("rgb") || shayari.customBgColor.startsWith("hsl")) {
+                        finalCardBgStyle.backgroundColor = shayari.customBgColor;
+                      } else {
+                        finalCardBgStyle.backgroundColor = solidsMap[shayari.customBgColor] || resolveTailwindColor(shayari.customBgColor.replace("bg-", "")) || "#FFFFFF";
+                      }
+                    } else {
+                      finalCardBgStyle.backgroundColor = "#FFFFFF";
+                    }
+                    const isLightCardBg = !shayari.customBgGradient?.includes("950") && 
+                                          !shayari.customBgGradient?.includes("900") && 
+                                          !shayari.customBgGradient?.includes("black") && 
+                                          !shayari.customBgColor?.includes("slate-9") && 
+                                          !shayari.customBgColor?.includes("zinc-9") && 
+                                          !shayari.customBgColor?.includes("black");
+
+                    const textClass = (isLightCardBg && (!shayari.customTextColor || shayari.customTextColor === "text-white" || shayari.customTextColor === "text-slate-100")) 
+                      ? "text-[#111111]" 
+                      : (shayari.customTextColor || "text-[#111111]");
                     const sizeClass = shayari.customTextSize || "text-2xl";
                     const fontClass = shayari.customFontClass || activeFontConfig.class;
                     const weightClass = (shayari.customIsBold !== undefined ? shayari.customIsBold : fontWeight === "bold")
                       ? "!font-bold"
                       : "!font-normal";
-                    const emojiVal = shayari.customEmoji || getMoodEmoji(shayari.mood);
+                    const emojiVal = shayari.customEmoji || getMoodEmoji(shayari.mood, shayari.sher);
 
                     const cardSpecs = getAutoAdjustedCardSpecs(
-                      (shayari.customRatio || "1:1") as any,
+                      (shayari.customRatio || "9:16") as any,
                       sizeClass,
                       shayari.sher,
                       !shayari.isAI && !!shayari.poet,
@@ -4339,12 +3928,22 @@ export default function App() {
                       <div
                         key={shayari.id || index}
                         id={`shayari-card-${shayari.id}`}
-                        style={{ containerType: "size", ...cardSpecs.cardVariables, ...cardSpecs.cardStyle, ...finalCardBgStyle }}
-                        className={`shayari-card relative overflow-hidden rounded-[32px] ${cardSpecs.paddingClass} backdrop-blur-xl ${bgClass} border ${activeTheme.cardBorder} shadow-[0_20px_50px_rgba(0,0,0,0.03)] flex flex-col justify-center items-center ${
+                        style={{
+                          containerType: "size",
+                          backdropFilter: "blur(10px)",
+                          WebkitBackdropFilter: "blur(10px)",
+                          border: "1px solid #F1F5F9",
+                          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.06)",
+                          borderRadius: "28px",
+                          ...cardSpecs.cardVariables,
+                          ...cardSpecs.cardStyle,
+                          ...finalCardBgStyle
+                        }}
+                        className={`shayari-card relative overflow-hidden rounded-[28px] ${cardSpecs.paddingClass} border border-[#F1F5F9] shadow-[0_8px_24px_rgba(0,0,0,0.06)] flex flex-col justify-center items-center ${
                           shayari.customRatio === "4:5" ? "aspect-[4/5]" :
-                          shayari.customRatio === "9:16" ? "aspect-[9/16]" :
                           shayari.customRatio === "16:9" ? "aspect-[16/9]" :
-                          "aspect-square"
+                          shayari.customRatio === "1:1" ? "aspect-square" :
+                          "aspect-[9/16]"
                         }`}
                       >
                         {/* Texture overlay */}
@@ -4379,21 +3978,11 @@ export default function App() {
                           </div>
                         )}
 
-                        <div className={`absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 border-b ${activeTheme.cardBorder} z-20`} data-download-ignore="true">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`text-[8px] px-2 py-0.5 rounded-full font-sans font-bold uppercase tracking-wider flex items-center gap-0.5 border ${activeTheme.tagMood} shadow-3xs`}>
-                              <span>{emojiVal}</span>
-                              <span>{shayari.mood || "Poetry"}</span>
+                        <div className={`absolute top-0 left-0 right-0 flex items-center justify-between px-3.5 py-2 border-b ${activeTheme.cardBorder} z-20`} data-download-ignore="true">
+                          <div className="flex items-center">
+                            <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-lg border ${activeTheme.tagClassic} shadow-3xs`}>
+                              #{index + 1 < 10 ? `0${index + 1}` : index + 1}
                             </span>
-                            {shayari.isAI ? (
-                              <span className={`text-[8px] font-extrabold ${activeTheme.tagAi} px-2 py-0.5 rounded-full uppercase tracking-wider border transition-all duration-300`}>
-                                ✨ AI Original
-                              </span>
-                            ) : (
-                              <span className={`text-[8px] font-extrabold ${activeTheme.tagClassic} px-2 py-0.5 rounded-full uppercase tracking-wider border transition-all duration-300`}>
-                                📜 Masterpiece
-                              </span>
-                            )}
                           </div>
                           <div className="flex items-center gap-1.5" data-download-ignore="true">
                             {/* Move Text Action */}
@@ -4430,10 +4019,28 @@ export default function App() {
                               <Download className="w-3.5 h-3.5" />
                             </button>
 
+                            {/* Share Card Action */}
+                            <button
+                              onClick={() => handleShareCardImage(shayari)}
+                              disabled={sharingCardId === shayari.id}
+                              className={`p-1.5 rounded-full border transition-all duration-300 cursor-pointer ${
+                                sharingCardId === shayari.id
+                                  ? "bg-purple-100 border-purple-300 text-purple-700 font-bold scale-105"
+                                  : `bg-white/60 ${activeTheme.cardBorder} ${activeTheme.iconColor} hover:text-purple-600 hover:bg-purple-50/50`
+                              }`}
+                              title="Share Shayari Card"
+                            >
+                              {sharingCardId === shayari.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                              ) : (
+                                <Share2 className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+
                             <button
                               onClick={() => toggleSaveShayari(shayari)}
                               className="p-1.5 rounded-full border border-red-100 bg-red-50 text-red-500 cursor-pointer hover:scale-105 active:scale-95 transition-all"
-                              title="Remove Favorite"
+                              title="Remove from Saved"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -4498,29 +4105,24 @@ export default function App() {
                         )}
 
                         <div 
-                          className="w-full flex flex-col items-center justify-center py-1 relative z-10"
+                          className="w-full flex flex-col items-center justify-center relative z-10 box-border"
                           style={{ ...cardSpecs.innerWrapperStyle }}
                         >
-                          {/* Centered Emoji Icon Element */}
-                          {!shayari.customHideEmoji && (
-                            <div 
-                              className={`${cardSpecs.emojiMarginClass} flex items-center justify-center`}
-                              style={{ ...cardSpecs.emojiContainerStyle }}
-                            >
-                              <span 
-                                className={`${cardSpecs.emojiClass} filter drop-shadow-sm select-none`}
-                                style={{ ...cardSpecs.emojiStyle }}
-                              >
-                                {emojiVal}
-                              </span>
-                            </div>
-                          )}
+                            {/* Emotional Title with Automatic Resizing & Safe Horizontal Padding */}
+                            <ShayariCardTitle
+                              title={getShayariTitle(shayari)}
+                              ratio={shayari.customRatio || "9:16"}
+                              isLightBg={isLightCardBg}
+                              textColor={textClass}
+                              hasTextShadow={!!shayari.customTextShadow}
+                            />
 
                            {/* Urdu / Hindi Script text - Spaced naturally with our dynamic paragraph gap system */}
                            <PoetryMoveResizeWrapper
                              shayari={shayari}
                              isActive={activeMoveTextId === shayari.id}
                              onSave={handleSaveMoveResize}
+                             onUpdateText={updateShayariText}
                              onClose={() => setActiveMoveTextId(null)}
                            >
                              <div 
@@ -4534,7 +4136,7 @@ export default function App() {
                                  shayari.sher,
                                  shayari.customAnimation || "none",
                                  0, // no trigger for saved cards except normal render
-                                 shayari.customHighlightKeywords || false,
+                                 shayari.customHighlightKeywords !== undefined ? shayari.customHighlightKeywords : true,
                                  textClass,
                                  shayari.customHighlightColor,
                                  cardSpecs.fontSizeClass,
@@ -4543,28 +4145,23 @@ export default function App() {
                                  fontClass,
                                  weightClass,
                                  cardSpecs.textStyle,
-                                 shayari.customTextShadow ? "0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3)" : undefined
+                                 shayari.customTextShadow ? "0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3)" : undefined,
+                                 "normal",
+                                 0.5,
+                                 3.0,
+                                 true,
+                                 shayari.customHideEmoji,
+                                 emojiVal,
+                                 shayari.mood,
+                                 shayari.highlights
                                )}
                              </div>
                            </PoetryMoveResizeWrapper>
-                          {!shayari.isAI && shayari.poet && (
-                            <div 
-                              className={`${cardSpecs.poetMarginClass} flex items-center justify-center`}
-                              style={{ ...cardSpecs.poetContainerStyle }}
-                            >
-                              <span 
-                                className={`text-[8px] font-mono tracking-wider ${activeTheme.poetTag} px-2.5 py-0.5 rounded-full border`}
-                                style={{ ...cardSpecs.poetStyle }}
-                              >
-                                Poet: <span className={`font-bold ${activeTheme.poetBold}`}>{shayari.poet}</span>
-                              </span>
-                            </div>
-                          )}
                         </div>
 
                         {/* Subtle watermark inside poetry card */}
                         {renderWatermark(
-                          shayari.customRatio || "1:1",
+                          shayari.customRatio || "9:16",
                           shayari.sher,
                           !shayari.isAI && !!shayari.poet,
                           shayari.customTextY || 0,
@@ -4735,91 +4332,386 @@ export default function App() {
           )}
 
         </div>
+      )}
 
-        {/* Dynamic Android Material Bottom Tab Bar */}
-        <nav className="fixed bottom-0 left-0 right-0 max-w-lg md:max-w-2xl mx-auto h-[calc(60px+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white/85 dark:bg-slate-900/85 backdrop-blur-[18px] border-t border-white/60 dark:border-slate-800/80 rounded-t-[20px] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] flex items-center justify-around z-[99999] shrink-0 transition-all duration-200">
-          <button
-            type="button"
-            onClick={() => {
-              triggerHapticFeedback();
-              setActiveTab("generator");
-            }}
-            className={`flex flex-col items-center justify-center relative h-full flex-1 transition-all duration-200 cursor-pointer ${
-              activeTab === "generator" ? "text-[#FF2E88] font-bold" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 font-medium"
-            }`}
-          >
-            {activeTab === "generator" && (
-              <span className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#FF2E88] shadow-[0_0_8px_#FF2E88] transition-all duration-200" />
-            )}
-            <Compass className={`w-[22px] h-[22px] transition-transform duration-200 ${activeTab === "generator" ? "scale-105" : "scale-100"}`} />
-            <span className="text-[11px] leading-tight font-sans mt-0.5">Weave</span>
-          </button>
+        {/* Fixed ChatGPT / Gemini Bottom Composer Bar */}
+        {activeTab === "generator" && (
+          <div className="fixed bottom-[12px] left-[12px] right-[12px] max-w-lg md:max-w-2xl mx-auto z-[100] space-y-1.5 pointer-events-auto">
+            
+            {/* Smooth Compact Popover Panel */}
+            <AnimatePresence mode="wait">
+              {activeToolbarPanel && (
+                <motion.div
+                  key="popover-settings-panel"
+                  initial={{ opacity: 0, height: 0, y: 8 }}
+                  animate={{ opacity: 1, height: "auto", y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: 8 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  className="overflow-hidden bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800/90 rounded-2xl p-2.5 shadow-lg max-h-[220px] overflow-y-auto no-scrollbar space-y-2 select-none"
+                >
+                  {/* Popover Header Tabs */}
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 z-10">
+                    <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 p-0.5 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHapticFeedback();
+                          setActiveToolbarPanel("textStyle");
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-[12px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                          activeToolbarPanel === "textStyle"
+                            ? "bg-white dark:bg-slate-900 text-[#FF2E88] shadow-2xs"
+                            : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                        }`}
+                      >
+                        <Palette className="w-4 h-4 text-[#FF2E88]" />
+                        <span>Text Style</span>
+                      </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              triggerHapticFeedback();
-              setActiveTab("saved");
-            }}
-            className={`flex flex-col items-center justify-center relative h-full flex-1 transition-all duration-200 cursor-pointer ${
-              activeTab === "saved" ? "text-[#FF2E88] font-bold" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 font-medium"
-            }`}
-          >
-            {activeTab === "saved" && (
-              <span className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#FF2E88] shadow-[0_0_8px_#FF2E88] transition-all duration-200" />
-            )}
-            <div className="relative">
-              <Heart className={`w-[22px] h-[22px] transition-transform duration-200 ${activeTab === "saved" ? "scale-105" : "scale-100"}`} />
-              {savedShayaris.length > 0 && (
-                <span className="absolute -top-1.5 -right-2 bg-gradient-to-r from-[#FF2E88] to-[#7B2FF7] text-white text-[9px] font-mono font-bold rounded-full w-4 h-4 flex items-center justify-center animate-bounce shadow-xs">
-                  {savedShayaris.length}
-                </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHapticFeedback();
+                          setActiveToolbarPanel("language");
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-[12px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                          activeToolbarPanel === "language"
+                            ? "bg-white dark:bg-slate-900 text-[#FF2E88] shadow-2xs"
+                            : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                        }`}
+                      >
+                        <Languages className="w-4 h-4 text-[#FF2E88]" />
+                        <span>Language</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHapticFeedback();
+                          setActiveToolbarPanel("cardStyle");
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-[12px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                          activeToolbarPanel === "cardStyle"
+                            ? "bg-white dark:bg-slate-900 text-[#FF2E88] shadow-2xs"
+                            : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                        }`}
+                      >
+                        <ImageIcon className="w-4 h-4 text-[#FF2E88]" />
+                        <span>Card Style</span>
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHapticFeedback();
+                        setActiveToolbarPanel(null);
+                      }}
+                      className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      title="Close"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {activeToolbarPanel === "textStyle" && (() => {
+                    const filteredFonts = FONTS.filter((font) =>
+                      font.name.toLowerCase().includes(fontSearchQuery.toLowerCase()) ||
+                      font.id.toLowerCase().includes(fontSearchQuery.toLowerCase())
+                    );
+                    const recentFontsList = FONTS.filter((font) => recentlyUsedFonts.includes(font.id));
+
+                    return (
+                      <div className="space-y-2">
+                        {/* Search bar */}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={fontSearchQuery}
+                            onChange={(e) => setFontSearchQuery(e.target.value)}
+                            placeholder="Search font (e.g. Garamond, Calligraphy, Devanagari)..."
+                            className={`w-full bg-white/70 dark:bg-slate-950/40 border rounded-lg pl-7 pr-7 py-1 text-[10px] text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none transition-all ${activeTheme.inputFocus} ${activeTheme.cardBorder}`}
+                          />
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+                          {fontSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setFontSearchQuery("")}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer text-[9px]"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Recently Used Fonts */}
+                        {recentFontsList.length > 0 && !fontSearchQuery && (
+                          <div className="space-y-1">
+                            <div className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                              Recently Used
+                            </div>
+                            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                              {recentFontsList.map((font) => {
+                                const isSelected = selectedFont === font.id;
+                                return (
+                                  <button
+                                    key={`recent-${font.id}`}
+                                    type="button"
+                                    onClick={() => handleFontChange(font.id)}
+                                    className={`px-2 py-0.5 rounded-md border text-[9px] cursor-pointer transition-all shrink-0 ${
+                                      isSelected
+                                        ? `bg-gradient-to-r ${activeTheme.buttonGrad} border-transparent text-white font-semibold`
+                                        : `bg-white/80 dark:bg-slate-950/30 border-slate-200/40 dark:border-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-50`
+                                    }`}
+                                  >
+                                    <span className={font.class}>{font.name}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Font options list */}
+                        <div className="space-y-1">
+                          <div className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                            All Fonts ({filteredFonts.length})
+                          </div>
+                          <div className="flex flex-row flex-nowrap gap-1.5 overflow-x-auto py-1 px-1 border border-slate-100/60 dark:border-slate-800/60 rounded-xl bg-white/40 dark:bg-slate-950/20 no-scrollbar w-full scroll-smooth">
+                            {filteredFonts.map((font) => {
+                              const isSelected = selectedFont === font.id;
+                              return (
+                                <button
+                                  key={font.id}
+                                  type="button"
+                                  onClick={() => handleFontChange(font.id)}
+                                  className={`p-1 px-1.5 rounded-lg border text-left cursor-pointer transition-all duration-200 flex flex-col justify-between h-[34px] min-h-[34px] w-[80px] min-w-[80px] max-w-[86px] shrink-0 ${
+                                    isSelected
+                                      ? `bg-gradient-to-r ${activeTheme.buttonGrad} border-transparent text-white shadow-xs scale-[1.01]`
+                                      : `bg-white/90 dark:bg-slate-950/50 border-slate-200/55 dark:border-slate-800/55 hover:border-slate-300 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800`
+                                  }`}
+                                >
+                                  <span className={`text-[6px] font-mono tracking-tight font-bold uppercase line-clamp-1 ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
+                                    {font.name}
+                                  </span>
+                                  <span className={`text-[8px] mt-0.5 line-clamp-1 block leading-none font-medium ${font.class}`}>
+                                    ग़ज़ल Aa
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Selected Live Preview */}
+                        <div className="text-center py-1 px-2 rounded bg-white/50 dark:bg-slate-950/20 border border-slate-100/40 dark:border-slate-800/40">
+                          <span className={`text-[9px] leading-tight block ${activeFontConfig.class} ${shayariFontWeightClass} ${activeTheme.textColor}`}>
+                            धड़कन, एहसास, ग़ज़ल और शायरी... (Selected Preview)
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {activeToolbarPanel === "language" && (
+                    <div className="flex gap-1.5 py-1">
+                      {[
+                        { id: "hindi", name: "Hindi (हिन्दी)", desc: "Devanagari script" },
+                        { id: "urdu", name: "Urdu (اردو)", desc: "Urdu script style" },
+                        { id: "hinglish", name: "Hinglish", desc: "Roman script" }
+                      ].map((lang) => {
+                        const isSelected = selectedLanguage === lang.id;
+                        return (
+                          <button
+                            key={lang.id}
+                            type="button"
+                            onClick={() => handleLanguageChange(lang.id as any)}
+                            className={`flex-1 py-1.5 px-1 rounded-xl text-[12px] text-center cursor-pointer transition-all border flex flex-col justify-center items-center ${
+                              isSelected
+                                ? `bg-gradient-to-r ${activeTheme.buttonGrad} text-white border-transparent shadow-2xs font-bold`
+                                : `bg-white/80 dark:bg-slate-900/80 ${activeTheme.iconColor} border-slate-200/40 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800 ${activeTheme.cardBorder}`
+                            }`}
+                          >
+                            <span className="font-bold">{lang.name}</span>
+                            <span className={`text-[9px] mt-0.5 opacity-80 leading-none ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
+                              {lang.desc}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {activeToolbarPanel === "cardStyle" && (
+                    <div className="space-y-2 py-0.5 animate-fade-in">
+                      {/* Panel Sub Header */}
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[12px] font-bold text-slate-800 dark:text-slate-200">
+                            Card Style
+                          </span>
+                        </div>
+                        {((generatedShayaris[activeCardIndex]?.customCardStyleBg) || selectedCardStyleBg) && (
+                          <button
+                            type="button"
+                            onClick={() => handleApplyCardStyleToActiveCard(null)}
+                            className="text-[10px] font-bold text-rose-500 hover:text-rose-600 cursor-pointer flex items-center gap-1 transition-colors"
+                          >
+                            <span>Reset Theme</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Card Style Image Thumbnails */}
+                      <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-2 pt-1 scroll-smooth select-none min-h-[120px]">
+                        {(() => {
+                          const activeCard = generatedShayaris[activeCardIndex];
+                          const activeStyle = activeCard?.customCardStyleBg !== undefined
+                            ? activeCard.customCardStyleBg
+                            : (selectedCardStyleBg || "");
+                          const isDefaultSelected = !activeStyle;
+
+                          return (
+                            <>
+                              {/* Default / Reset Thumbnail Option */}
+                              <button
+                                type="button"
+                                onClick={() => handleApplyCardStyleToActiveCard(null)}
+                                className={`w-[72px] h-[108px] min-w-[72px] rounded-[18px] border flex flex-col items-center justify-center cursor-pointer transition-all duration-200 active:scale-95 shadow-md shrink-0 ${
+                                  isDefaultSelected
+                                    ? "border-[#FF2D8D] ring-2 ring-[#FF2D8D]/60 shadow-[0_0_14px_rgba(255,45,141,0.4)] scale-[1.03] bg-rose-50/50 dark:bg-rose-950/20 z-10"
+                                    : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:scale-[1.02]"
+                                }`}
+                              >
+                                <span className="text-2xl">🎨</span>
+                                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 leading-none mt-1.5">Default</span>
+                              </button>
+
+                              {isLoadingStyles ? (
+                                <div className="flex items-center gap-2 text-[10px] text-slate-400 italic py-2">
+                                  <span className="w-3.5 h-3.5 rounded-full border-2 border-[#FF2D8D] border-t-transparent animate-spin"></span>
+                                  Loading styles...
+                                </div>
+                              ) : (
+                                validCardStyles.map((stylePath) => {
+                                  const isSelected = activeStyle === stylePath;
+                                  const { cleanName } = getCategoryAndName(stylePath);
+
+                                  return (
+                                    <button
+                                      key={stylePath}
+                                      type="button"
+                                      onClick={() => handleApplyCardStyleToActiveCard(stylePath)}
+                                      className={`w-[72px] h-[108px] min-w-[72px] rounded-[18px] overflow-hidden cursor-pointer transition-all duration-200 active:scale-95 shadow-md relative flex items-center justify-center bg-slate-100 dark:bg-slate-800 shrink-0 ${
+                                        isSelected
+                                          ? "border-2 border-[#FF2D8D] ring-2 ring-[#FF2D8D]/60 shadow-[0_0_14px_rgba(255,45,141,0.4)] scale-[1.03] z-10"
+                                          : "border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 hover:scale-[1.02]"
+                                      }`}
+                                      title={cleanName}
+                                    >
+                                      <img
+                                        src={stylePath}
+                                        alt={cleanName}
+                                        className="w-full h-full object-cover rounded-[18px]"
+                                        referrerPolicy="no-referrer"
+                                        onError={(e) => {
+                                          const btn = e.currentTarget.closest("button");
+                                          if (btn) btn.style.setProperty("display", "none", "important");
+                                          setFailedCardStyles((prev) => {
+                                            const next = new Set(prev);
+                                            next.add(stylePath);
+                                            return next;
+                                          });
+                                        }}
+                                      />
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
               )}
-            </div>
-            <span className="text-[11px] leading-tight font-sans mt-0.5">Saved</span>
-          </button>
+            </AnimatePresence>
 
-          <button
-            type="button"
-            onClick={() => {
-              triggerHapticFeedback();
-              setActiveTab("about");
-            }}
-            className={`flex flex-col items-center justify-center relative h-full flex-1 transition-all duration-200 cursor-pointer ${
-              activeTab === "about" ? "text-[#FF2E88] font-bold" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 font-medium"
-            }`}
-          >
-            {activeTab === "about" && (
-              <span className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#FF2E88] shadow-[0_0_8px_#FF2E88] transition-all duration-200" />
-            )}
-            <BookOpen className={`w-[22px] h-[22px] transition-transform duration-200 ${activeTab === "about" ? "scale-105" : "scale-100"}`} />
-            <span className="text-[11px] leading-tight font-sans mt-0.5">Legends</span>
-          </button>
+            {/* ChatGPT / Gemini Compact Bottom Input Composer */}
+            {!editingShayari && (
+              <form
+                onSubmit={handleGenerate}
+                className="w-full h-[48px] bg-white border border-slate-200/90 rounded-[24px] px-2.5 flex items-center gap-2 shadow-lg focus-within:border-[#FF2D8D]/60 transition-all"
+              >
+                {/* 3-Line Menu / Settings Icon on Left */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHapticFeedback();
+                    setActiveToolbarPanel(activeToolbarPanel ? null : "textStyle");
+                  }}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full transition-all cursor-pointer shrink-0 ${
+                    activeToolbarPanel
+                      ? "bg-gradient-to-r from-[#FF2D8D] to-[#7B2FF7] text-white shadow-2xs"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                  }`}
+                  title="Settings & Styles"
+                >
+                  <Menu className="w-4 h-4" />
+                </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              triggerHapticFeedback();
-              setActiveTab("settings");
-            }}
-            className={`flex flex-col items-center justify-center relative h-full flex-1 transition-all duration-200 cursor-pointer ${
-              activeTab === "settings" ? "text-[#FF2E88] font-bold" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 font-medium"
-            }`}
-          >
-            {activeTab === "settings" && (
-              <span className="absolute top-1.5 w-1.5 h-1.5 rounded-full bg-[#FF2E88] shadow-[0_0_8px_#FF2E88] transition-all duration-200" />
+                <input
+                  type="text"
+                  id="mood_input"
+                  value={userInput}
+                  onChange={(e) => {
+                    setUserInput(e.target.value);
+                    if (e.target.value.trim()) setError(null);
+                  }}
+                  placeholder="Type your mood…"
+                  maxLength={150}
+                  className="flex-1 bg-transparent text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none px-1 h-full"
+                />
+
+                {userInput.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHapticFeedback();
+                      setUserInput("");
+                    }}
+                    className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all cursor-pointer mr-0.5"
+                    title="Clear text"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {/* Send Button (32px Circle) */}
+                <button
+                  type="submit"
+                  disabled={isLoading || isGenerateDisabledBy429 || !userInput.trim()}
+                  onClick={triggerHapticFeedback}
+                  className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full bg-gradient-to-r from-[#FF2E88] to-[#7B2FF7] text-white flex items-center justify-center shadow-2xs hover:opacity-95 active:scale-95 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                  title={isGenerateDisabledBy429 ? `Wait (${generateDisableCountdown}s)` : "Send"}
+                >
+                  <ArrowUp className="w-3.5 h-3.5 stroke-[2.5]" />
+                </button>
+              </form>
             )}
-            <Palette className={`w-[22px] h-[22px] transition-transform duration-200 ${activeTab === "settings" ? "scale-105" : "scale-100"}`} />
-            <span className="text-[11px] leading-tight font-sans mt-0.5">Theme</span>
-          </button>
-        </nav>
+
+          </div>
+        )}
+
+
 
       </div>
     );
   };
 
   return (
-    <div className={`w-screen min-h-screen bg-gradient-to-b ${activeTheme.bgGrad} flex flex-col font-sans antialiased relative selection:bg-purple-200/70 transition-colors duration-500 overflow-x-hidden`} id="app_root">
+    <div className={`w-screen h-screen max-h-screen bg-gradient-to-b ${activeTheme.bgGrad} flex flex-col font-sans antialiased relative selection:bg-purple-200/70 transition-colors duration-500 overflow-hidden select-none`} id="app_root">
       
       {/* Background aesthetics */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -4843,61 +4735,102 @@ export default function App() {
       </AnimatePresence>
 
       {/* Full-screen Fluid responsive container layout */}
-      <div className="flex-1 flex flex-col min-h-screen relative w-full max-w-lg md:max-w-2xl mx-auto shadow-2xl border-x border-slate-800/10 bg-slate-900/40 backdrop-blur-md">
+      <div className="flex-1 flex flex-col h-full max-h-screen overflow-hidden relative w-full max-w-lg md:max-w-2xl mx-auto shadow-sm border-x border-[#F1F5F9] bg-white">
         {renderAppContent()}
       </div>
 
       {/* Shayari Card Custom Editor Modal */}
       <AnimatePresence>
         {editingShayari && (
-          <div className="fixed inset-0 z-50 flex items-stretch justify-stretch p-2 md:p-4 lg:p-6 bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-md overflow-hidden">
+          <div className="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden select-none">
             <motion.div
-              initial={{ opacity: 0, scale: 0.98, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 15 }}
-              className="bg-white dark:bg-slate-900 rounded-[24px] md:rounded-[32px] w-full h-full overflow-hidden border border-slate-200/50 dark:border-slate-800/80 shadow-2xl flex flex-col relative"
+              initial={{ opacity: 0, scale: 0.99 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.99 }}
+              className="w-full h-full flex flex-col relative overflow-hidden bg-white max-w-2xl mx-auto shadow-2xl"
             >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className={`p-1.5 rounded-lg bg-indigo-50 ${activeTheme.iconColor}`}>
-                    <Palette className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Customize Poetry Card</h3>
-                    <p className="text-[9px] text-slate-400 font-medium">Design your custom visual masterwork</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setEditingShayari(null)}
-                  className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer transition-all"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Modal Body Container (Divided to fix the preview card at the top) */}
-              <div className="flex-1 flex flex-col min-h-0 overflow-hidden select-none">
+              {/* Modal Body Container */}
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden select-none relative bg-white">
                 
-                {/* LIVE PREVIEW SECTION (Fixed/Pinned Canvas) */}
-                <div 
-                  className="w-full border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20 flex-[1.4_1.4_0%] min-h-[220px] max-h-[42vh] md:max-h-[50vh] flex flex-col justify-center items-center relative overflow-hidden select-none"
-                >
-                  <div className="absolute top-2.5 left-2.5 flex flex-col gap-0.5 pointer-events-none select-none z-10">
-                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-white/70 dark:bg-slate-900/70 px-1.5 py-0.5 rounded backdrop-blur-xs">Live Preview</span>
-                    <span className="text-[8px] text-slate-400 dark:text-slate-500 font-mono font-bold bg-white/70 dark:bg-slate-900/70 border border-slate-200/20 px-1.5 py-0.5 rounded backdrop-blur-xs self-start">
-                      {editedRatio}
+                {/* COMPACT EDITOR HEADER WITH RESET / DOWNLOAD / SAVE BUTTONS */}
+                <div className="w-full flex items-center justify-between px-3 py-2 z-30 shrink-0 bg-white border-b border-slate-100 shadow-2xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                      <Palette className="w-4 h-4 text-[#FF2D8D]" />
+                      <span>Card Editor</span>
                     </span>
                   </div>
 
+                  <div className="flex items-center gap-1.5">
+                    {/* Reset Button */}
+                    <button
+                      type="button"
+                      onClick={handleResetCard}
+                      className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1 border border-slate-200/80 shadow-2xs"
+                      title="Reset Card"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Reset</span>
+                    </button>
+
+                    {/* Download Button */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        handleSaveChanges();
+                        await handleDownloadPreview();
+                      }}
+                      className="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 text-[11px] font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
+                      title="Download Image"
+                    >
+                      <Download className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Download</span>
+                    </button>
+
+                    {/* Share Button */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        handleSaveChanges();
+                        await handleSharePreview();
+                      }}
+                      className="px-2.5 py-1 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 text-[11px] font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
+                      title="Share Card Image"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Share</span>
+                    </button>
+
+                    {/* Save / Done Button */}
+                    <button
+                      type="button"
+                      onClick={handleSaveChanges}
+                      className="px-3 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
+                      title="Save Changes"
+                    >
+                      <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />
+                      <span>Save</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* EXPANDED LIVE PREVIEW SECTION */}
+                <div 
+                  className="w-full border-b border-slate-100 bg-slate-50/70 flex-[2.5_2.5_0%] min-h-[360px] max-h-[66vh] flex flex-col justify-center items-center relative overflow-hidden select-none px-2 py-2"
+                >
                   <div 
                     ref={previewContainerRef}
-                    className="absolute inset-3 md:inset-4 flex items-center justify-center overflow-hidden"
+                    className="w-full h-full flex items-center justify-center overflow-hidden relative"
                   >
                     {
                       (() => {
+                        const currentRatio = (editedRatio || editingShayari.customRatio || "9:16") as "1:1" | "4:5" | "9:16" | "16:9";
+                        const baseSpec = CARD_RATIO_SPECS[currentRatio] || CARD_RATIO_SPECS["9:16"];
+                        const targetW = baseSpec.width;
+                        const targetH = baseSpec.height;
+
                         const modalSpecs = getAutoAdjustedCardSpecs(
-                          editedRatio as any,
+                          currentRatio,
                           editedTextSize,
                           editedSher,
                           !editingShayari.isAI && !!editingShayari.poet,
@@ -4908,22 +4841,17 @@ export default function App() {
                           true,
                           customHideEmoji
                         );
-                        const ratioVal = 
-                          editedRatio === "4:5" ? 0.8 :
-                          editedRatio === "9:16" ? 0.5625 :
-                          editedRatio === "16:9" ? 1.7777777778 :
-                          1.0;
 
-                        const containerW = previewContainerSize.width || 300;
-                        const containerH = previewContainerSize.height || 250;
+                        const containerW = previewContainerSize.width > 0 ? previewContainerSize.width : 340;
+                        const containerH = previewContainerSize.height > 0 ? previewContainerSize.height : 280;
 
-                        let cardWidth = containerW;
-                        let cardHeight = containerW / ratioVal;
+                        // Safe margins to ensure the card never touches container edges and shadow has room
+                        const availableW = Math.max(100, containerW - 20);
+                        const availableH = Math.max(100, containerH - 20);
 
-                        if (cardHeight > containerH) {
-                          cardHeight = containerH;
-                          cardWidth = containerH * ratioVal;
-                        }
+                        // Single source of truth proportional scale factor: aspectRatio -> cardWidth/cardHeight -> scale
+                        const scale = Math.min(availableW / targetW, availableH / targetH);
+                        activeEditorScaleRef.current = scale;
 
                         const { bgClass, style: bgStyle } = getCardBgStyleAndClass(
                           editedBgGradient,
@@ -4931,188 +4859,224 @@ export default function App() {
                           editedBgColor,
                           "bg-slate-50"
                         );
-                        const styleBg = editedCardStyleBg || selectedCardStyleBg;
-                        const hasExplicitEditorGradientOrTexture = !!editedBgGradient || !!editedBgTexture;
-                        const effectiveStyleBg = hasExplicitEditorGradientOrTexture ? undefined : styleBg;
-                        const finalCardBgStyle = {
-                          ...bgStyle,
-                          ...(effectiveStyleBg ? {
-                            backgroundImage: `url("${effectiveStyleBg}")`,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                            backgroundRepeat: "no-repeat"
-                          } : {})
+                        const editedStyleBg = editedCardStyleBg !== undefined ? editedCardStyleBg : (selectedCardStyleBg || "");
+
+                        const finalCardBgStyle: React.CSSProperties = {
+                          borderRadius: "28px",
+                          boxShadow: "0 16px 36px rgba(0, 0, 0, 0.20), 0 5px 14px rgba(0, 0, 0, 0.12)",
+                          border: "1px solid #F1F5F9",
                         };
 
+                        if (editedStyleBg && !editedBgGradient && !editedBgColor) {
+                          finalCardBgStyle.backgroundImage = `url("${formatCardBgUrl(editedStyleBg)}")`;
+                          finalCardBgStyle.backgroundSize = "cover";
+                          finalCardBgStyle.backgroundPosition = "center";
+                          finalCardBgStyle.backgroundRepeat = "no-repeat";
+                        } else if (editedBgGradient) {
+                          if (editedBgGradient.includes("gradient")) {
+                            finalCardBgStyle.backgroundImage = editedBgGradient;
+                          } else {
+                            finalCardBgStyle.backgroundImage = convertTailwindGradientToCss(editedBgGradient);
+                          }
+                        } else if (editedBgColor) {
+                          if (editedBgColor.startsWith("#") || editedBgColor.startsWith("rgb") || editedBgColor.startsWith("hsl")) {
+                            finalCardBgStyle.backgroundColor = editedBgColor;
+                          } else {
+                            finalCardBgStyle.backgroundColor = solidsMap[editedBgColor] || resolveTailwindColor(editedBgColor.replace("bg-", "")) || "#FFFFFF";
+                          }
+                        } else {
+                          finalCardBgStyle.backgroundColor = "#FFFFFF";
+                        }
+
                         return (
-                          <div 
-                            id="custom-card-preview"
-                            onMouseMove={handleMouseMove}
-                            onMouseUp={handleMouseUp}
-                            onMouseLeave={handleMouseUp}
-                            style={{ 
-                              containerType: "size", 
-                              width: `${cardWidth}px`,
-                              height: `${cardHeight}px`,
-                              ...modalSpecs.cardVariables, 
-                              "--font-size-scale": editedTextScale,
-                              ...modalSpecs.cardStyle,
-                            } as React.CSSProperties}
-                          className={`shayari-card relative overflow-hidden rounded-[32px] ${modalSpecs.paddingClass} border ${activeTheme.cardBorder} shadow-[0_20px_50px_rgba(0,0,0,0.03)] flex flex-col justify-center items-center transition-all duration-300`}
-                        >
-                          {/* Background Container */}
                           <div
-                            style={{ ...finalCardBgStyle }}
-                            className={`absolute inset-0 z-0 ${bgClass}`}
+                            className="relative flex items-center justify-center select-none"
+                            style={{
+                              width: `${targetW * scale}px`,
+                              height: `${targetH * scale}px`,
+                            }}
                           >
-                            {/* Texture overlay */}
-                            {editedBgTexture && getTextureOverlayWithFallback(editedBgTexture)}
-
-                            {/* Inner glowing core decoration matching selected theme */}
-                            <div className={`absolute -right-12 -bottom-12 w-32 h-32 rounded-full ${activeTheme.accentGlow} blur-3xl pointer-events-none`} />
-
-                            {/* Base64 Decorative Image Background */}
-                            {editedImage ? (
-                              <div
-                                className={`absolute select-none cursor-move overflow-hidden ${
-                                  editedImageMode === "small" ? "border border-white/20 shadow-inner rounded-2xl" : ""
-                                }`}
-                                style={{
-                                  left: "50%",
-                                  top: "50%",
-                                  transform: `translate(calc(-50% + ${imagePos.x}px), calc(-50% + ${imagePos.y}px)) scale(${editedImageScale}) rotate(${editedImageRotate}deg)`,
-                                  width: editedImageMode === "small" ? "140px" : "100%",
-                                  height: editedImageMode === "small" ? "140px" : "100%",
-                                  opacity: editedImageMode === "small" ? 0.55 : 0.45,
-                                }}
-                                onMouseDown={handleMouseDown}
-                                onTouchStart={handleTouchStart}
-                                onTouchMove={handleTouchMove}
-                                onTouchEnd={handleTouchEnd}
-                              >
-                                <img
-                                  src={editedImage}
-                                  alt="drag-preview"
-                                  style={{ filter: editedImageFilter }}
-                                  className={`w-full h-full pointer-events-none ${
-                                    editedImageMode === "small" ? "object-cover rounded-2xl" :
-                                    editedImageMode === "fit" ? "object-contain" :
-                                    editedImageMode === "fill" ? "object-fill" :
-                                    editedImageMode === "contain" ? "object-contain" :
-                                    "object-cover"
-                                  }`}
-                                  referrerPolicy="no-referrer"
-                                />
-                              </div>
-                            ) : (
-                              <div className={`absolute -right-2 -bottom-6 ${activeTheme.cardDecoration} text-[110px] font-serif select-none pointer-events-none opacity-40 transition-colors duration-500`}>
-                                ❦
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Drag instruction overlay if there is an image */}
-                          {editedImage && (
-                            <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-white text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full pointer-events-none z-20">
-                              Drag Image to Position
-                            </div>
-                          )}
-
-                          {/* Card preview top metadata bar */}
-                          <div className={`absolute top-0 left-0 right-0 flex justify-between items-center px-4.5 py-3 border-b ${activeTheme.cardBorder} z-20`} data-download-ignore="true">
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] bg-black/5 px-2 py-0.5 rounded font-extrabold flex items-center justify-center">
-                                {editedEmoji}
-                              </span>
-                              <span className="text-[8px] uppercase tracking-wider font-black text-slate-500">
-                                #{editingShayari.id.slice(0, 4).toUpperCase()}
-                              </span>
-                            </div>
-                            <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400">
-                              Custom Styled
-                            </span>
-                          </div>
-
-                          {/* Card preview shayari verses */}
-                          <div 
-                            className="w-full flex flex-col items-center justify-center relative z-10 py-1.5"
-                            style={{ ...modalSpecs.innerWrapperStyle }}
-                          >
-                            {/* Centered Emoji Icon Element */}
-                            {!customHideEmoji && (
-                              <div 
-                                className={`${modalSpecs.emojiMarginClass} flex items-center justify-center`}
-                                style={{ ...modalSpecs.emojiContainerStyle }}
-                              >
-                                <span 
-                                  className={`${modalSpecs.emojiClass} filter drop-shadow-sm select-none`}
-                                  style={{ ...modalSpecs.emojiStyle }}
-                                >
-                                  {editedEmoji}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Urdu / Hindi Script text - Spaced naturally with our dynamic paragraph gap system */}
-                            <div 
-                              className="w-full flex flex-col items-center justify-center text-center"
-                              style={{ 
-                                ...modalSpecs.verseContainerStyle,
-                                transform: `translate(${textPos.x}px, ${textPos.y}px)`
+                            <div
+                              style={{
+                                width: `${targetW}px`,
+                                height: `${targetH}px`,
+                                transform: `scale(${scale})`,
+                                transformOrigin: "center center",
+                                flexShrink: 0,
                               }}
                             >
-                              {renderPoetryText(
-                                editedSher || "Your beautiful verse will appear here...",
-                                "none",
-                                0,
-                                editedHighlightKeywords,
-                                editedTextColor,
-                                editedHighlightColor,
-                                modalSpecs.fontSizeClass,
-                                modalSpecs.leadingClass,
-                                modalSpecs.containerClass,
-                                editedFontClass,
-                                editedIsBold ? "!font-bold" : "!font-normal",
-                                modalSpecs.textStyle,
-                                editedTextShadow ? "0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3)" : undefined
-                              )}
-                            </div>
-                            {!editingShayari.isAI && editingShayari.poet && (
                               <div 
-                                className={`${modalSpecs.poetMarginClass} flex items-center justify-center`}
-                                style={{ ...modalSpecs.poetContainerStyle }}
+                                id="custom-card-preview"
+                                onMouseMove={handleMouseMove}
+                                onMouseUp={handleMouseUp}
+                                onMouseLeave={handleMouseUp}
+                                style={{ 
+                                  containerType: "size", 
+                                  width: "100%",
+                                  height: "100%",
+                                  backgroundColor: "#FFFFFF",
+                                  ...modalSpecs.cardVariables, 
+                                  "--font-size-scale": editedTextScale,
+                                  ...modalSpecs.cardStyle,
+                                } as React.CSSProperties}
+                                className={`shayari-card relative overflow-hidden rounded-[28px] ${modalSpecs.paddingClass} border border-[#F1F5F9] shadow-[0_16px_36px_rgba(0,0,0,0.20),0_5px_14px_rgba(0,0,0,0.12)] flex flex-col justify-center items-center ${baseSpec.aspectClass}`}
                               >
-                                <span 
-                                  className={`text-[8px] font-mono tracking-wider ${activeTheme.poetTag} px-3 py-1 rounded-full uppercase shadow-3xs border`}
-                                  style={{ ...modalSpecs.poetStyle }}
+                                {/* Background Container */}
+                                <div
+                                  style={{ ...finalCardBgStyle, opacity: editedBgOpacity }}
+                                  className={`absolute inset-0 z-0 ${bgClass}`}
                                 >
-                                  Poet: <span className={`font-sans font-extrabold ${activeTheme.poetBold}`}>{editingShayari.poet}</span>
-                                </span>
-                              </div>
-                            )}
-                          </div>
+                                  {/* Texture overlay */}
+                                  {editedBgTexture && getTextureOverlayWithFallback(editedBgTexture)}
 
-                          {/* Subtle watermark inside poetry card (custom editor) */}
-                          {renderWatermark(
-                            editedRatio || "1:1",
-                            editedSher,
-                            !editingShayari.isAI && !!editingShayari.poet,
-                            textPos.y || 0,
-                            editedTextColor,
-                            editedTextShadow,
-                            editingShayari.customWatermarkText,
-                            editingShayari.customWatermarkPosition,
-                            editingShayari.customWatermarkOpacity,
-                            editingShayari.customWatermarkEnabled
-                          )}
-                        </div>
-                      );
-                    })()
-                  }
+                                  {/* Inner glowing core decoration matching selected theme */}
+                                  <div className={`absolute -right-12 -bottom-12 w-32 h-32 rounded-full ${activeTheme.accentGlow} opacity-30 pointer-events-none`} />
+
+                                  {/* Base64 Decorative Image Background */}
+                                  {editedImage ? (
+                                    <div
+                                      className={`absolute select-none cursor-move overflow-hidden ${
+                                        editedImageMode === "small" ? "border border-white/20 shadow-inner rounded-2xl" : ""
+                                      }`}
+                                      style={{
+                                        left: "50%",
+                                        top: "50%",
+                                        transform: `translate(calc(-50% + ${imagePos.x}px), calc(-50% + ${imagePos.y}px)) scale(${editedImageScale}) rotate(${editedImageRotate}deg)`,
+                                        width: editedImageMode === "small" ? "140px" : "100%",
+                                        height: editedImageMode === "small" ? "140px" : "100%",
+                                        opacity: editedImageMode === "small" ? 0.55 : 0.45,
+                                      }}
+                                      onMouseDown={handleMouseDown}
+                                      onTouchStart={handleTouchStart}
+                                      onTouchMove={handleTouchMove}
+                                      onTouchEnd={handleTouchEnd}
+                                    >
+                                      <img
+                                        src={editedImage}
+                                        alt="drag-preview"
+                                        style={{ filter: editedImageFilter }}
+                                        className={`w-full h-full pointer-events-none ${
+                                          editedImageMode === "small" ? "object-cover rounded-2xl" :
+                                          editedImageMode === "fit" ? "object-contain" :
+                                          editedImageMode === "fill" ? "object-fill" :
+                                          editedImageMode === "contain" ? "object-contain" :
+                                          "object-cover"
+                                        }`}
+                                        referrerPolicy="no-referrer"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className={`absolute -right-2 -bottom-6 ${activeTheme.cardDecoration} text-[110px] font-serif select-none pointer-events-none opacity-40 transition-colors duration-500`}>
+                                      ❦
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Drag instruction overlay if there is an image */}
+                                {editedImage && (
+                                  <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-white text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full pointer-events-none z-20">
+                                    Drag Image to Position
+                                  </div>
+                                )}
+
+                                {/* Card preview top metadata bar */}
+                                <div className={`absolute top-0 left-0 right-0 flex justify-between items-center px-3.5 py-2 border-b ${activeTheme.cardBorder} z-20`} data-download-ignore="true">
+                                  <div className="flex items-center">
+                                    <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-lg border ${activeTheme.tagClassic} shadow-3xs`}>
+                                      #01
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Card preview shayari verses */}
+                                <div 
+                                  className="w-full flex flex-col items-center justify-center relative z-10 box-border"
+                                  style={{ ...modalSpecs.innerWrapperStyle }}
+                                >
+                                  {/* Emotional Title with Automatic Resizing & Safe Horizontal Padding */}
+                                  {editingShayari && (
+                                    <ShayariCardTitle
+                                      title={getShayariTitle(editingShayari)}
+                                      ratio={currentRatio}
+                                      isLightBg={
+                                        !editedBgGradient?.includes("950") &&
+                                        !editedBgGradient?.includes("900") &&
+                                        !editedBgGradient?.includes("black") &&
+                                        !editedBgColor?.includes("slate-9") &&
+                                        !editedBgColor?.includes("zinc-9") &&
+                                        !editedBgColor?.includes("black") &&
+                                        !editedCardStyleBg
+                                      }
+                                      textColor={editedTextColor}
+                                      hasTextShadow={!!editedTextShadow}
+                                    />
+                                  )}
+
+                                  {/* Urdu / Hindi Script text */}
+                                  <div 
+                                    className="w-full flex flex-col items-center justify-center text-center"
+                                    style={{ 
+                                      ...modalSpecs.verseContainerStyle,
+                                      transform: `translate(${textPos.x}px, ${textPos.y}px)`
+                                    }}
+                                  >
+                                    {renderPoetryText(
+                                      editedSher || "Your beautiful verse will appear here...",
+                                      "none",
+                                      0,
+                                      editedHighlightKeywords,
+                                      editedTextColor,
+                                      editedHighlightColor,
+                                      modalSpecs.fontSizeClass,
+                                      modalSpecs.leadingClass,
+                                      modalSpecs.containerClass,
+                                      editedFontClass,
+                                      editedIsBold ? "!font-bold" : "!font-normal",
+                                      {
+                                        ...modalSpecs.textStyle,
+                                        ...(editedTextGradient ? {
+                                          backgroundImage: editedTextGradient,
+                                          WebkitBackgroundClip: "text",
+                                          WebkitTextFillColor: "transparent",
+                                          color: "transparent"
+                                        } : {})
+                                      },
+                                      editedTextShadow ? "0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3)" : undefined,
+                                      "normal",
+                                      0.5,
+                                      3.0,
+                                      true,
+                                      customHideEmoji,
+                                      editedEmoji,
+                                      editingShayari?.mood,
+                                      editingShayari?.highlights
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Subtle watermark inside poetry card (custom editor) */}
+                                {renderWatermark(
+                                  currentRatio,
+                                  editedSher,
+                                  !editingShayari.isAI && !!editingShayari.poet,
+                                  textPos.y || 0,
+                                  editedTextColor,
+                                  editedTextShadow,
+                                  editingShayari.customWatermarkText,
+                                  editingShayari.customWatermarkPosition,
+                                  editingShayari.customWatermarkOpacity,
+                                  editingShayari.customWatermarkEnabled
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    }
                   </div>
                 </div>
 
-                {/* EDITING CONTROLS SECTION (Scrollable, below fixed live preview card) */}
+                {/* EDITING CONTROLS SECTION */}
                 <PoetryCardEditorControls
                   activeTool={activeTool}
                   setActiveTool={setActiveTool}
@@ -5191,39 +5155,13 @@ export default function App() {
                   setCustomHideEmoji={setCustomHideEmoji}
                   customHideWatermark={false}
                   setCustomHideWatermark={() => setShowPremiumPopup(true)}
+                  editedBgOpacity={editedBgOpacity}
+                  setEditedBgOpacity={setEditedBgOpacity}
+                  editedTextGradient={editedTextGradient}
+                  setEditedTextGradient={setEditedTextGradient}
                 />
 
-
-
-                              </div>
-
-              {/* Modal Footer Controls */}
-              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex gap-2 justify-between items-center shrink-0">
-                <button
-                  type="button"
-                  onClick={handleResetCard}
-                  className="px-4 py-2 border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-[0.98]"
-                >
-                  Reset Card
-                </button>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingShayari(null)}
-                    className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer transition-all active:scale-[0.98]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveChanges}
-                    className={`px-5 py-2 bg-gradient-to-r ${activeTheme.buttonGrad} hover:opacity-95 text-white rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-[0.98] shadow-sm`}
-                  >
-                    Save Changes
-                  </button>
-                </div>
               </div>
-
             </motion.div>
           </div>
         )}
@@ -5302,6 +5240,23 @@ export default function App() {
         resetSeconds={rateLimitResetSeconds}
         isDisableCooldownActive={isGenerateDisabledBy429}
         disableCooldownSeconds={generateDisableCountdown}
+      />
+
+      {/* Edit Shayari Bottom Sheet */}
+      <EditShayariBottomSheet
+        isOpen={!!activeEditSheetId}
+        shayari={
+          generatedShayaris.find((s) => s.id === activeEditSheetId) ||
+          savedShayaris.find((s) => s.id === activeEditSheetId) ||
+          null
+        }
+        onUpdateText={updateShayariText}
+        onSave={() => {
+          showToast("Shayari saved successfully! ✨");
+        }}
+        onClose={() => {
+          setActiveEditSheetId(null);
+        }}
       />
 
     </div>

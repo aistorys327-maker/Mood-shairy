@@ -30,13 +30,14 @@ const getGeminiClient = () => {
 
 // Helper function to detect and parse rate limit / quota exceeded errors from Gemini API
 function parseRateLimitError(err: any) {
-  if (!err) return { isRateLimit: false, retryAfterSeconds: null, fullError: null };
+  if (!err) return { isRateLimit: false, isTransientUnavailable: false, retryAfterSeconds: null, fullError: null };
 
   const status = err.status || err.statusCode || err.response?.status || err.response?.statusCode;
   const msg = typeof err.message === "string" ? err.message : JSON.stringify(err);
   const msgLower = msg.toLowerCase();
 
   const is429Status = status === 429;
+  const is503Status = status === 503 || status === 500 || status === 504;
   const isRateLimitMsg =
     msgLower.includes("429") ||
     msgLower.includes("resource_exhausted") ||
@@ -44,11 +45,20 @@ function parseRateLimitError(err: any) {
     msgLower.includes("rate limit") ||
     msgLower.includes("too many requests");
 
+  const isTransientMsg =
+    is503Status ||
+    msgLower.includes("503") ||
+    msgLower.includes("high demand") ||
+    msgLower.includes("unavailable") ||
+    msgLower.includes("overloaded") ||
+    msgLower.includes("temporarily unavailable") ||
+    msgLower.includes("spikes in demand");
+
   const isRateLimit = is429Status || isRateLimitMsg;
 
   let retryAfterSeconds: number | null = null;
 
-  if (isRateLimit) {
+  if (isRateLimit || isTransientMsg) {
     // 1. Check response headers for Retry-After
     const retryHeader = err.response?.headers?.get?.("retry-after") ||
                         err.response?.headers?.["retry-after"] ||
@@ -80,6 +90,7 @@ function parseRateLimitError(err: any) {
 
   return {
     isRateLimit,
+    isTransientUnavailable: isTransientMsg,
     retryAfterSeconds: retryAfterSeconds || null,
     fullError: err
   };
@@ -107,85 +118,135 @@ app.post("/api/generate", async (req, res) => {
     let languagePrompt = "";
     let sherDescription = "";
     if (targetLanguage === "urdu") {
-      languagePrompt = `You are a master Urdu poet. Generate 5 original, expressive, and beautiful Urdu shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
-Write exactly 5 completely new, unique, and fresh Urdu shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
+      languagePrompt = `You are a master Urdu poet. Generate 5 original, expressive, and viral Instagram Reels/Stories style Urdu shayaris. Do not repeat any previous shayari.
+Write exactly 5 completely new, unique, and fresh Urdu shayaris matching the specified user mood: "${trimmedInput}". 
 
-CRITICAL LENGTH AND NATURAL VARIATION RULES:
-- Generate a random, natural line count for each shayari based on its emotion and poetic beauty.
-- Absolute Minimum: 2 lines. Absolute Maximum: 8 lines. NEVER exceed 8 lines.
-- Across the 5 generated shayaris, follow this natural probability distribution for length:
-  • ~70% of shayaris should be 4 to 5 lines (preferred standard length).
-  • ~20% of shayaris should be 6 to 7 lines (richer, detailed poetry).
-  • ~10% of shayaris should be 2 to 3 lines (especially if the emotion naturally suits a concise, punchy verse like attitude, heartbreak, or a sharp ending).
-- Add proper line breaks (\\n) between every line. Do NOT combine lines into paragraphs.
-- Keep the text centered, balanced, and card-friendly.
+CRITICAL SCRIPT REQUIREMENT - URDU SCRIPT ONLY:
+- The 'sher' field MUST be written strictly and entirely in original Urdu script (Nastaliq / Arabic script for Urdu: اردو).
+- Absolutely DO NOT write the 'sher' in Devanagari Hindi or English/Latin letters.
 
-SCRIPT REQUIREMENT:
-The primary 'sher' field MUST be written strictly and entirely in original Urdu script (Nastaliq/Arabic script for Urdu).
+CRITICAL EMOTIONAL TITLE DIRECTIVE:
+- For each shayari, create a short emotional title in Urdu script in 'title' field with 1–2 relevant emojis.
+
+CRITICAL EMOJI DIRECTIVE (2–4 Emojis Total):
+- Put 1–2 emojis in/near the title.
+- Put 1 emotional emoji near the final line of the shayari text if it fits naturally.
+- Do NOT place emojis on every line or randomly at the top.
+
+CRITICAL KEYWORD / PHRASE HIGHLIGHTING DIRECTIVE:
+- Intelligently select 1 to 3 of the most emotional, poignant, funny, or powerful words/short phrases in the sher for visual emphasis.
+- Color selection matching mood:
+  - Love/romantic: '#DC2626' (Red), '#E11D48' (Rose), '#EA580C' (Warm Orange)
+  - Sad/emotional: '#EA580C' (Deep Orange), '#DC2626' (Crimson), '#C2410C' (Rust)
+  - Funny: '#D97706' (Golden Yellow), '#EA580C' (Orange), '#16A34A' (Green)
+  - Motivational: '#DC2626' (Bold Red), '#EA580C' (Fiery Orange), '#15803D' (Emerald Green)
+  - Attitude/powerful: '#DC2626' (Fierce Red), '#EA580C' (Bold Orange)
+
+CRITICAL LENGTH AND LINE BREAK RULES:
+- Standard length: 4 to 6 lines (separated by \\n).
+- Keep the text centered, balanced, and quote-card friendly.
 
 For each shayari, provide:
-1. Urdu text in 'sher' field (2 to 8 lines separated by \\n, 4-5 lines preferred).
-2. Latin transliteration / Hinglish in 'transliteration' field.
-3. Plain English translation capturing the authentic essence and emotional depth in 'translation' field.
-4. Name of the poet in 'poet' field (e.g., Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or Traditional).
-5. The associated mood label in 'mood' field.`;
-      sherDescription = "2 to 8 lines of original Shayari strictly in beautiful Urdu Nastaliq script (Arabic script for Urdu), separated by newlines (4-5 lines preferred, max 8 lines)";
+1. Short emotional title in Urdu with emoji in 'title' field.
+2. Urdu text in 'sher' field (4-6 lines separated by \\n in Urdu script).
+3. Latin transliteration / Hinglish in 'transliteration' field.
+4. Plain English translation in 'translation' field.
+5. Name of the poet in 'poet' field (or Traditional).
+6. The associated mood label in 'mood' field.
+7. 'highlights' array with 1–3 { phrase, color } objects.`;
+      sherDescription = "4 to 6 lines of original Shayari strictly in beautiful Urdu Nastaliq script (اردو) with 1 natural ending emoji, separated by newlines (max 8 lines)";
     } else if (targetLanguage === "hinglish") {
-      languagePrompt = `You are a master poet. Generate 5 original, expressive, and beautiful Hinglish shayaris (Hindi/Urdu written in Latin/Roman script). Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
-Write exactly 5 completely new, unique, and fresh Hinglish shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
+      languagePrompt = `You are an elite poet specializing in Hinglish poetry (Hindi/Urdu poetry written exclusively in the Latin / English alphabet).
+Write exactly 5 completely new, unique, and fresh Hinglish shayaris matching the specified user mood: "${trimmedInput}". 
 
-CRITICAL LENGTH AND NATURAL VARIATION RULES:
-- Generate a random, natural line count for each shayari based on its emotion and poetic beauty.
-- Absolute Minimum: 2 lines. Absolute Maximum: 8 lines. NEVER exceed 8 lines.
-- Across the 5 generated shayaris, follow this natural probability distribution for length:
-  • ~70% of shayaris should be 4 to 5 lines (preferred standard length).
-  • ~20% of shayaris should be 6 to 7 lines (richer, detailed poetry).
-  • ~10% of shayaris should be 2 to 3 lines (especially if the emotion naturally suits a concise, punchy verse like attitude, heartbreak, or a sharp ending).
-- Add proper line breaks (\\n) between every line. Do NOT combine lines into paragraphs.
-- Keep the text centered, balanced, and card-friendly.
+CRITICAL STRICT SCRIPT REQUIREMENT - LATIN / ROMAN ALPHABET ONLY:
+- The 'sher' field MUST be written ONLY and EXCLUSIVELY in Roman / Latin English letters (A-Z, a-z).
+- NEVER use Devanagari script (हिंदी) or Urdu script (اردو) anywhere in the 'sher' field or 'title' field.
+- Example Hinglish Sher:
+"Mohabbat dil se hoti hai, lafzon se nahi,
+Yeh woh ehsaas hai jo har kisi ko milta nahi.
+Teri yaadon ke sahare kat rahi hai zindagi,
+Warna jeene ka ab koi irada nahi. ✨"
 
-SCRIPT REQUIREMENT:
-The primary 'sher' field MUST be written strictly and entirely in Latin/Roman script as Hinglish (NOT Devanagari, NOT Urdu script).
+CRITICAL EMOTIONAL TITLE DIRECTIVE:
+- For each shayari, create a short emotional title in Hinglish (Roman English letters) in 'title' field with 1–2 relevant emojis.
+- Examples of titles: "Sorry..!! 💔", "Yaad Aate Ho 🌧️", "Dil Toot Gaya 🥀", "Baarish Aur Tum 🌧️", "Akela Hoon 😔", "Mohabbat ❤️".
+
+CRITICAL EMOJI DIRECTIVE (2–4 Emojis Total):
+- Put 1–2 emojis in/near the title.
+- Put 1 emotional emoji near the final line of the shayari text if it fits naturally.
+- Do NOT place emojis on every line or randomly at the top.
+
+CRITICAL KEYWORD / PHRASE HIGHLIGHTING DIRECTIVE:
+- Intelligently select 1 to 3 of the most emotional, poignant, funny, or powerful words/short phrases in the sher for visual emphasis (e.g. 'Mohabbat', 'dil se', 'yaadon ke sahare', 'zindagi').
+- Color selection matching mood:
+  - Love/romantic: '#DC2626' (Red), '#E11D48' (Rose), '#EA580C' (Warm Orange)
+  - Sad/emotional: '#EA580C' (Deep Orange), '#DC2626' (Crimson), '#C2410C' (Rust)
+  - Funny: '#D97706' (Golden Yellow), '#EA580C' (Orange), '#16A34A' (Green)
+  - Motivational: '#DC2626' (Bold Red), '#EA580C' (Fiery Orange), '#15803D' (Emerald Green)
+  - Attitude/powerful: '#DC2626' (Fierce Red), '#EA580C' (Bold Orange)
+
+CRITICAL LENGTH AND LINE BREAK RULES:
+- Standard length: 4 to 6 lines (separated by \\n).
+- Keep the text centered, balanced, and quote-card friendly.
 
 For each shayari, provide:
-1. Hinglish text in 'sher' field (2 to 8 lines separated by \\n, 4-5 lines preferred).
-2. Latin transliteration / Hinglish in 'transliteration' field.
-3. Plain English translation capturing the authentic essence and emotional depth in 'translation' field.
-4. Name of the poet in 'poet' field (e.g., Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or Traditional).
-5. The associated mood label in 'mood' field.`;
-      sherDescription = "2 to 8 lines of original Shayari strictly in beautiful Hinglish (Latin/Roman script representing Hindi/Urdu pronunciation), separated by newlines (4-5 lines preferred, max 8 lines)";
+1. Short emotional title in Roman letters with emoji in 'title' field (e.g. 'Yaad Aate Ho 🌧️').
+2. Hinglish text in 'sher' field (4-6 lines strictly in Roman English alphabet separated by \\n).
+3. Same Roman Hinglish text in 'transliteration' field.
+4. Plain English translation in 'translation' field.
+5. Name of the poet in 'poet' field (or Traditional).
+6. The associated mood label in 'mood' field.
+7. 'highlights' array with 1–3 { phrase, color } objects.`;
+      sherDescription = "4 to 6 lines of original Shayari strictly in Roman Hinglish (Latin English letters ONLY, absolutely NO Devanagari Hindi or Urdu script) with 1 natural ending emoji, separated by newlines (max 8 lines)";
     } else {
       // Default: Hindi
-      languagePrompt = `You are a master Hindi poet. Generate 5 original, expressive, and beautiful Hindi shayaris. Do not repeat any previous shayari. Create fresh, creative, and unique shayaris every time.
-Write exactly 5 completely new, unique, and fresh Hindi shayaris matching the specified user mood/feeling/thoughts: "${trimmedInput}". 
+      languagePrompt = `You are a master Hindi poet. Generate 5 original, expressive, and viral Instagram Reels/Stories style Hindi shayaris. Do not repeat any previous shayari.
+Write exactly 5 completely new, unique, and fresh Hindi shayaris matching the specified user mood: "${trimmedInput}". 
 
-CRITICAL LENGTH AND NATURAL VARIATION RULES:
-- Generate a random, natural line count for each shayari based on its emotion and poetic beauty.
-- Absolute Minimum: 2 lines. Absolute Maximum: 8 lines. NEVER exceed 8 lines.
-- Across the 5 generated shayaris, follow this natural probability distribution for length:
-  • ~70% of shayaris should be 4 to 5 lines (preferred standard length).
-  • ~20% of shayaris should be 6 to 7 lines (richer, detailed poetry).
-  • ~10% of shayaris should be 2 to 3 lines (especially if the emotion naturally suits a concise, punchy verse like attitude, heartbreak, or a sharp ending).
-- Add proper line breaks (\\n) between every line. Do NOT combine lines into paragraphs.
-- Keep the text centered, balanced, and card-friendly.
+CRITICAL SCRIPT REQUIREMENT - DEVANAGARI HINDI ONLY:
+- The 'sher' field MUST be written strictly and entirely in Devanagari Hindi script (हिंदी).
+- Absolutely DO NOT write the 'sher' in English / Roman script or Urdu script.
 
-SCRIPT REQUIREMENT:
-The primary 'sher' field MUST be written strictly and entirely in beautiful Devanagari Hindi script (NOT Urdu script, NOT Hinglish).
+CRITICAL EMOTIONAL TITLE DIRECTIVE:
+- For each shayari, create a short emotional title in Hindi Devanagari script in 'title' field with 1–2 relevant emojis.
+- Examples of titles: "तेरी याद 🌧️", "दिल टूट गया 🥀", "बारिश और तुम 🌧️", "माफ़ी..!! 💔", "मोहब्बत ❤️".
 
-EXAMPLE FORMAT (Devanagari Hindi, 5 lines separated by \\n):
-बारिश की बूंदों में तेरा नाम मिला,
-खामोश हवाओं में एक पैगाम मिला।
-रात ने चुपके से तुझे याद किया,
-दिल ने फिर तेरा इंतज़ार किया।
-तू मिले तो मौसमों को सुकून मिला।
+CRITICAL EMOJI DIRECTIVE (2–4 Emojis Total):
+- Put 1–2 emojis in/near the title.
+- Put 1 emotional emoji near the final line of the shayari text if it fits naturally.
+- Do NOT place emojis on every line or randomly at the top.
+
+CRITICAL KEYWORD / PHRASE HIGHLIGHTING DIRECTIVE:
+- Intelligently select 1 to 3 of the most emotional, poignant, funny, or powerful words/short phrases in the sher for visual emphasis (e.g. 'धूप', 'एक-दूसरे से', 'मोहब्बत', 'आँसू', 'किस्मत').
+- Color selection matching mood:
+  - Love/romantic: '#DC2626' (Red), '#E11D48' (Rose), '#EA580C' (Warm Orange)
+  - Sad/emotional: '#EA580C' (Deep Orange), '#DC2626' (Crimson), '#C2410C' (Rust)
+  - Funny: '#D97706' (Golden Yellow), '#EA580C' (Orange), '#16A34A' (Green)
+  - Motivational: '#DC2626' (Bold Red), '#EA580C' (Fiery Orange), '#15803D' (Emerald Green)
+  - Attitude/powerful: '#DC2626' (Fierce Red), '#EA580C' (Bold Orange)
+
+CRITICAL LENGTH AND LINE BREAK RULES:
+- Standard length: 4 to 6 lines (separated by \\n).
+- Keep the text centered, balanced, and quote-card friendly.
+
+EXAMPLE FORMAT (Hindi Devanagari, 4-6 lines with title):
+Title: "बारिश और तुम 🌧️"
+Sher:
+तेरी तस्वीर को सीने से लगाकर रोए,
+रात भर अपनी ही किस्मत पे मनाकर रोए।
+जिस जगह छोड़ गए थे तुम अकेले हमको,
+आज फिर उस पुरानी राह पे जाकर रोए। 😢
 
 For each shayari, provide:
-1. Devanagari Hindi text in 'sher' field (2 to 8 lines separated by \\n, 4-5 lines preferred).
-2. Latin transliteration / Hinglish in 'transliteration' field.
-3. Plain English translation capturing the authentic essence and emotional depth in 'translation' field.
-4. Name of the poet in 'poet' field (e.g., Mirza Ghalib, Gulzar, Faiz Ahmed Faiz, Rahat Indori, Allama Iqbal, Bashir Badr, Jaun Elia, or Traditional).
-5. The associated mood label in 'mood' field.`;
-      sherDescription = "2 to 8 lines of original Shayari strictly in beautiful Hindi Devanagari script, separated by newlines (4-5 lines preferred, max 8 lines)";
+1. Short emotional title in Hindi Devanagari with emoji in 'title' field.
+2. Devanagari Hindi text in 'sher' field (4-6 lines separated by \\n).
+3. Latin transliteration / Hinglish in 'transliteration' field.
+4. Plain English translation in 'translation' field.
+5. Name of the poet in 'poet' field (or Traditional).
+6. The associated mood label in 'mood' field.
+7. 'highlights' array with 1–3 { phrase, color } objects.`;
+      sherDescription = "4 to 6 lines of original Shayari strictly in Devanagari Hindi (हिंदी) with 1 natural ending emoji, separated by newlines (max 8 lines)";
     }
 
     const prompt = `${languagePrompt}${exclusionInstruction}`;
@@ -196,56 +257,115 @@ For each shayari, provide:
         type: Type.OBJECT,
         properties: {
           id: { type: Type.STRING, description: "A unique random string ID for this card" },
+          title: { type: Type.STRING, description: "Short emotional title for the card with 1-2 relevant emojis (e.g. 'Sorry..!! 💔', 'Yaad Aate Ho 🌧️', 'Dil Toot Gaya 🥀', 'Baarish Aur Tum 🌧️', 'Akela Hoon 😔', 'Mohabbat ❤️')" },
           sher: { type: Type.STRING, description: sherDescription },
           transliteration: { type: Type.STRING, description: "Hinglish / Latin transliteration of the shayari" },
           translation: { type: Type.STRING, description: "A highly elegant English translation of the couplet" },
           poet: { type: Type.STRING, description: "Name of the writer/poet, or Traditional" },
-          mood: { type: Type.STRING, description: "Short feeling category of the generated poem (e.g., love, sad, motivated, etc.)" }
+          mood: { type: Type.STRING, description: "Short feeling category of the generated poem (e.g., love, sad, motivated, etc.)" },
+          highlights: {
+            type: Type.ARRAY,
+            description: "1 to 3 important emotional or powerful words/phrases from the sher to emphasize with accent colors",
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                phrase: { type: Type.STRING, description: "The exact word or short phrase from the sher" },
+                color: { type: Type.STRING, description: "The hex accent color for emphasis (#DC2626, #EA580C, #D97706, #16A34A, etc.)" }
+              },
+              required: ["phrase", "color"]
+            }
+          }
         },
-        required: ["id", "sher", "transliteration", "translation", "poet", "mood"]
+        required: ["id", "title", "sher", "transliteration", "translation", "poet", "mood"]
       }
     };
 
-    // Try multiple model endpoints to bypass single-model transient high traffic or 503 limits
-    const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+    // Try multiple standard Gemini model endpoints with retry & fallback to bypass single-model transient traffic limits
+    const modelsToTry = [
+      "gemini-2.5-flash",
+      "gemini-3.7-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-flash-latest"
+    ];
     let responseText = "";
     let generationSuccessful = false;
-    let rateLimitInfo: { isRateLimit: boolean; retryAfterSeconds: number | null; fullError: any } | null = null;
+    let rateLimitInfo: { isRateLimit: boolean; isTransientUnavailable?: boolean; retryAfterSeconds: number | null; fullError: any } | null = null;
 
-    for (const modelName of modelsToTry) {
-      try {
-        console.log(`Attempting secure generation with model: ${modelName}`);
-        const response = await ai.models.generateContent({
-          model: modelName,
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: schemas,
-            temperature: 1.2,
-          },
-        });
+    if (process.env.GEMINI_API_KEY) {
+      for (const modelName of modelsToTry) {
+        // Try up to 2 attempts per model for transient errors
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            console.log(`Attempting generation with model: ${modelName} (attempt ${attempt})`);
+            const response = await ai.models.generateContent({
+              model: modelName,
+              contents: prompt,
+              config: {
+                responseMimeType: "application/json",
+                responseSchema: schemas,
+                temperature: 1.1,
+              },
+            });
 
-        if (response.text) {
-          responseText = response.text;
-          generationSuccessful = true;
-          console.log(`Successfully generated using ${modelName}`);
-          break;
+            if (response.text) {
+              responseText = response.text;
+              generationSuccessful = true;
+              console.log(`Successfully generated using ${modelName}`);
+              break;
+            }
+          } catch (err: any) {
+            console.warn(`Model ${modelName} (attempt ${attempt}) returned an error:`, err?.message || err);
+            const rl = parseRateLimitError(err);
+            if (rl.isRateLimit) {
+              rateLimitInfo = rl;
+            }
+            if (attempt === 1 && (rl.isTransientUnavailable || rl.isRateLimit)) {
+              // Wait 500ms before second attempt
+              await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+          }
         }
-      } catch (err: any) {
-        console.warn(`Model ${modelName} returned an error or is unavailable:`, err?.message || err);
-        const rl = parseRateLimitError(err);
-        if (rl.isRateLimit) {
-          rateLimitInfo = rl;
-        }
+        if (generationSuccessful) break;
       }
     }
 
     if (generationSuccessful && responseText) {
-      const parsedShayaris = JSON.parse(responseText);
-      const aiShayaris = parsedShayaris.slice(0, 5).map((s: any) => ({ ...s, isAI: true }));
-      
-      if (aiShayaris.length > 0) {
-        return res.json({ shayaris: aiShayaris, isOfflineFallback: false });
+      try {
+        const parsedShayaris = JSON.parse(responseText);
+        const aiShayaris = parsedShayaris.slice(0, 5).map((s: any) => {
+          let sherText = s.sher || "";
+          let titleText = s.title || "";
+          
+          // Strict Script Safeguards:
+          if (targetLanguage === "hinglish") {
+            // If the model produced Devanagari in sher but provided transliteration in Roman, enforce Roman
+            if (/[\u0900-\u097F]/.test(sherText) && s.transliteration && !/[\u0900-\u097F]/.test(s.transliteration)) {
+              sherText = s.transliteration;
+            }
+          }
+
+          const rawHighlights = Array.isArray(s.highlights) ? s.highlights : [];
+          const validHighlights = rawHighlights
+            .filter((h: any) => h && typeof h.phrase === "string" && h.phrase.trim().length > 0)
+            .map((h: any) => ({
+              phrase: h.phrase.trim(),
+              color: typeof h.color === "string" && h.color.startsWith("#") ? h.color : "#DC2626"
+            }));
+
+          return {
+            ...s,
+            sher: sherText,
+            title: titleText,
+            highlights: validHighlights,
+            isAI: true
+          };
+        });
+        
+        if (aiShayaris.length > 0) {
+          return res.json({ shayaris: aiShayaris, isOfflineFallback: false });
+        }
+      } catch (parseErr) {
+        console.warn("Failed to parse Gemini JSON output, falling back to curated verses:", parseErr);
       }
     }
 
@@ -259,7 +379,143 @@ For each shayari, provide:
       });
     }
 
-    throw new Error("Unable to generate new shayaris from any Gemini AI models. Please try again shortly.");
+    // Curated fallback generator with strict language scripts
+    const getFallbackSher = (index: number) => {
+      if (targetLanguage === "hinglish") {
+        const hinglishVerses = [
+          {
+            title: "Dil Ki Baat ❤️",
+            sher: "Tum aaye to aaya mujhe yaad, ❤️\nGali mein aaj chaand nikla. ✨",
+            transliteration: "Tum aaye to aaya mujhe yaad, gali mein aaj chaand nikla.",
+            translation: "Your arrival reminded me of hope, as if a long-hidden moon had finally risen in my street.",
+            mood: "love"
+          },
+          {
+            title: "Yaad Aate Ho 🌧️",
+            sher: "Wo jo hum mein tum mein qaraar tha tumhe yaad ho ki na yaad ho,\nWahi yaani waada nibaah ka tumhe yaad ho ki na yaad ho. 🥀",
+            transliteration: "Wo jo hum mein tum mein qaraar tha tumhe yaad ho ki na yaad ho, Wahi yaani waada nibaah ka tumhe yaad ho ki na yaad ho.",
+            translation: "That quiet understanding we shared, you may or may not recall; that promise of lifelong faithfulness.",
+            mood: "sad"
+          },
+          {
+            title: "Buland Hausla 🔥",
+            sher: "Khudi ko kar buland itna ki har taqdeer se pehle,\nKhuda bande se khud pooche bata teri raza kya hai. ✨",
+            transliteration: "Khudi ko kar buland itna ki har taqdeer se pehle, Khuda bande se khud pooche bata teri raza kya hai.",
+            translation: "Raise your selfhood so high that before writing your destiny, the Creator Himself asks you: 'What is your will?'",
+            mood: "motivational"
+          },
+          {
+            title: "Apna Andaz ✨",
+            sher: "Humko mita sake ye zamaane mein dam nahi,\nHumse zamaana khud hai, zamaane se hum nahi. ✨",
+            transliteration: "Humko mita sake ye zamaane mein dam nahi, Humse zamaana khud hai, zamaane se hum nahi.",
+            translation: "The world does not possess the power to erase our spirit; the world exists because of us.",
+            mood: "attitude"
+          },
+          {
+            title: "Pyaari Dosti 🤝",
+            sher: "Sacchi dosti mein kahan koi shartein hoti hain, ❤️\nBas ek khamosh ehsaas aur bepanaah saath hota hai. 🤍",
+            transliteration: "Sacchi dosti mein kahan koi shartein hoti hain, Bas ek khamosh ehsaas aur bepanaah saath hota hai.",
+            translation: "In true friendship, there are never conditions; just a silent bond and endless support.",
+            mood: "friendship"
+          }
+        ];
+        return hinglishVerses[index % hinglishVerses.length];
+      } else if (targetLanguage === "urdu") {
+        const urduVerses = [
+          {
+            title: "دل کی بات ❤️",
+            sher: "تم آئے تو آیا مجھے یاد، ❤️\nگلی میں آج چاند نکلا۔ ✨",
+            transliteration: "Tum aaye to aaya mujhe yaad, gali mein aaj chaand nikla.",
+            translation: "Your arrival reminded me of hope, as if a long-hidden moon had finally risen in my street.",
+            mood: "love"
+          },
+          {
+            title: "یاد آتے ہو 🌧️",
+            sher: "وہ جو ہم میں تم میں قرار تھا تمہیں یاد ہو کہ نہ یاد ہو،\nوہی یعنی وعدہ نباہ کا تمہیں یاد ہو کہ نہ یاد ہو۔ 🥀",
+            transliteration: "Wo jo hum mein tum mein qaraar tha tumhein yaad ho ki na yaad ho, Wahi yaani waada nibaah ka tumhein yaad ho ki na yaad ho.",
+            translation: "That quiet understanding we shared, you may or may not recall; that promise of lifelong faithfulness.",
+            mood: "sad"
+          },
+          {
+            title: "بلند حوصلہ 🔥",
+            sher: "خودی کو کر بلند اتنا کہ ہر تقدیر سے پہلے،\nخدا بندے سے خود پوچھے بتا تیری رضا کیا ہے۔ ✨",
+            transliteration: "Khudi ko kar buland itna ki har taqdeer se pehle, Khuda bande se khud pooche bata teri raza kya hai.",
+            translation: "Raise your selfhood so high that before writing your destiny, the Creator Himself asks you: 'What is your will?'",
+            mood: "motivational"
+          },
+          {
+            title: "اپنا انداز ✨",
+            sher: "ہم کو مٹا سکے یہ زمانے میں دم نہیں،\nہم سے زمانہ خود ہے زمانے سے ہم نہیں۔ ✨",
+            transliteration: "Humko mita sake ye zamaane mein dam nahi, Humse zamaana khud hai, zamaane se hum nahi.",
+            translation: "The world does not possess the power to erase our spirit; the world exists because of us.",
+            mood: "attitude"
+          },
+          {
+            title: "سچی دوستی 🤝",
+            sher: "سچی دوستی میں کہاں کوئی شرطیں ہوتی ہیں، ❤️\nبس ایک خاموش احساس اور بے پناہ ساتھ ہوتا ہے۔ 🤍",
+            transliteration: "Sacchi dosti mein kahan koi shartein hoti hain, Bas ek khamosh ehsaas aur bepanaah saath hota hai.",
+            translation: "In true friendship, there are never conditions; just a silent bond and endless support.",
+            mood: "friendship"
+          }
+        ];
+        return urduVerses[index % urduVerses.length];
+      } else {
+        const hindiVerses = [
+          {
+            title: "दिल की बात ❤️",
+            sher: "तुम आए तो आया मुझे याद, ❤️\nगली में आज चाँद निकला। ✨",
+            transliteration: "Tum aaye to aaya mujhe yaad, gali mein aaj chaand nikla.",
+            translation: "Your arrival reminded me of hope, as if a long-hidden moon had finally risen in my street.",
+            mood: "love"
+          },
+          {
+            title: "याद आते हो 🌧️",
+            sher: "वो जो हम में तुम में क़रार था तुम्हें याद हो कि न याद हो,\nवही यानी वादा निबाह का तुम्हें याद हो कि न याद हो। 🥀",
+            transliteration: "Wo jo hum mein tum mein qaraar tha tumhein yaad ho ki na yaad ho, Wahi yaani waada nibaah ka tumhein yaad ho ki na yaad ho.",
+            translation: "That quiet understanding we shared, you may or may not recall; that promise of lifelong faithfulness.",
+            mood: "sad"
+          },
+          {
+            title: "बुलंद हौसला 🔥",
+            sher: "ख़ुदी को कर बुलंद इतना कि हर तक़दीर से पहले,\nख़ुदा बंदे से ख़ुद पूछे बता तेरी रज़ा क्या है। ✨",
+            transliteration: "Khudi ko kar buland itna ki har taqdeer se pehle, Khuda bande se khud pooche bata teri raza kya hai.",
+            translation: "Raise your selfhood so high that before writing your destiny, the Creator Himself asks you: 'What is your will?'",
+            mood: "motivational"
+          },
+          {
+            title: "अपना अंदाज़ ✨",
+            sher: "हमको मिटा सके ये ज़माने में दम नहीं,\nहमसे ज़माना ख़ुद है, ज़माने से हम नहीं। ✨",
+            transliteration: "Humko mita sake ye zamaane mein dam nahi, Humse zamaana khud hai, zamaane se hum nahi.",
+            translation: "The world does not possess the power to erase our spirit; the world exists because of us.",
+            mood: "attitude"
+          },
+          {
+            title: "प्यारी दोस्ती 🤝",
+            sher: "सच्ची दोस्ती में कहाँ कोई शर्तें होती हैं, ❤️\nबस एक ख़ामोश एहसास और बेपनाह साथ होता है। 🤍",
+            transliteration: "Sacchi dosti mein kahan koi shartein hoti hain, Bas ek khamosh ehsaas aur bepanaah saath hota hai.",
+            translation: "In true friendship, there are never conditions; just a silent bond and endless support.",
+            mood: "friendship"
+          }
+        ];
+        return hindiVerses[index % hindiVerses.length];
+      }
+    };
+
+    const fallbackAnthology = [0, 1, 2, 3, 4].map((idx) => {
+      const verse = getFallbackSher(idx);
+      return {
+        id: `fb-${Date.now()}-${idx + 1}`,
+        title: verse.title,
+        sher: verse.sher,
+        transliteration: verse.transliteration,
+        translation: verse.translation,
+        poet: "Traditional",
+        mood: verse.mood,
+        isAI: false
+      };
+    });
+
+    return res.json({ shayaris: fallbackAnthology, isOfflineFallback: true });
 
   } catch (error: any) {
     const rl = parseRateLimitError(error);
@@ -325,37 +581,48 @@ Return the translated poetry text inside a JSON object with a single key 'transl
       required: ["translatedText"]
     };
 
-    const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+    const modelsToTry = [
+      "gemini-2.5-flash",
+      "gemini-3.7-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-flash-latest"
+    ];
     let responseText = "";
     let translationSuccessful = false;
-    let rateLimitInfo: { isRateLimit: boolean; retryAfterSeconds: number | null; fullError: any } | null = null;
+    let rateLimitInfo: { isRateLimit: boolean; isTransientUnavailable?: boolean; retryAfterSeconds: number | null; fullError: any } | null = null;
 
     for (const modelName of modelsToTry) {
-      try {
-        console.log(`Attempting translation using model: ${modelName}`);
-        const response = await ai.models.generateContent({
-          model: modelName,
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: schemas,
-            temperature: 0.3, // Lower temperature to keep the exact meaning and tone
-          },
-        });
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          console.log(`Attempting translation using model: ${modelName} (attempt ${attempt})`);
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: schemas,
+              temperature: 0.3, // Lower temperature to keep the exact meaning and tone
+            },
+          });
 
-        if (response.text) {
-          responseText = response.text;
-          translationSuccessful = true;
-          console.log(`Successfully translated using ${modelName}`);
-          break;
-        }
-      } catch (err: any) {
-        console.warn(`Translation Model ${modelName} returned an error:`, err?.message || err);
-        const rl = parseRateLimitError(err);
-        if (rl.isRateLimit) {
-          rateLimitInfo = rl;
+          if (response.text) {
+            responseText = response.text;
+            translationSuccessful = true;
+            console.log(`Successfully translated using ${modelName}`);
+            break;
+          }
+        } catch (err: any) {
+          console.warn(`Translation Model ${modelName} (attempt ${attempt}) returned an error:`, err?.message || err);
+          const rl = parseRateLimitError(err);
+          if (rl.isRateLimit) {
+            rateLimitInfo = rl;
+          }
+          if (attempt === 1 && (rl.isTransientUnavailable || rl.isRateLimit)) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
         }
       }
+      if (translationSuccessful) break;
     }
 
     if (translationSuccessful && responseText) {
@@ -400,6 +667,8 @@ const publicCardStylesDir = path.join(process.cwd(), "public", "card_styles");
 const publicAssetsCardStylesDir = path.join(process.cwd(), "public", "assets", "card_styles");
 const distCardStylesDir = path.join(process.cwd(), "dist", "card_styles");
 const distAssetsCardStylesDir = path.join(process.cwd(), "dist", "assets", "card_styles");
+const srcAssetsImagesDir = path.join(process.cwd(), "src", "assets", "images");
+const publicAssetsImagesDir = path.join(process.cwd(), "public", "assets", "images");
 
 const CATEGORY_SUBFOLDERS = [
   "love", "sad", "broken", "attitude", "alone",
@@ -422,6 +691,12 @@ if (!fs.existsSync(publicAssetsCardStylesDir)) {
 
 app.use("/card_styles", express.static(publicCardStylesDir));
 app.use("/assets/card_styles", express.static(publicAssetsCardStylesDir));
+if (fs.existsSync(srcAssetsImagesDir)) {
+  app.use("/src/assets/images", express.static(srcAssetsImagesDir));
+}
+if (fs.existsSync(publicAssetsImagesDir)) {
+  app.use("/assets/images", express.static(publicAssetsImagesDir));
+}
 
 if (fs.existsSync(distCardStylesDir)) {
   app.use("/card_styles", express.static(distCardStylesDir));
@@ -445,6 +720,8 @@ function scanCardStylesDirectories() {
   const dirsToScan = [
     { dir: publicCardStylesDir, urlPrefix: "/card_styles" },
     { dir: publicAssetsCardStylesDir, urlPrefix: "/assets/card_styles" },
+    { dir: srcAssetsImagesDir, urlPrefix: "/src/assets/images" },
+    { dir: publicAssetsImagesDir, urlPrefix: "/assets/images" },
     { dir: distCardStylesDir, urlPrefix: "/card_styles" },
     { dir: distAssetsCardStylesDir, urlPrefix: "/assets/card_styles" },
   ];
@@ -474,7 +751,7 @@ function scanCardStylesDirectories() {
         }
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
-        if (validExtensions.includes(ext)) {
+        if (validExtensions.includes(ext) && !entry.name.startsWith("app_icon") && !entry.name.startsWith("icon")) {
           const relativeUrl = `${urlPrefix}/${entry.name}`;
           if (!allStylesSet.has(relativeUrl)) {
             allStylesSet.add(relativeUrl);

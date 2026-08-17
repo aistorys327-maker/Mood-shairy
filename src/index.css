@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Outfit:wght@300..800&family=Fira+Code:wght@400;500&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400..700&family=Cinzel+Decorative:wght@400;700&family=Great+Vibes&family=Sacramento&family=Parisienne&family=Alex+Brush&family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Pacifico&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300..700&family=Yatra+One&family=Rozha+One&family=Halant:wght@300..700&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Aref+Ruqaa:wght@400;700&family=Reem+Kufi:wght@400..700&family=Noto+Nastaliq+Urdu:wght@400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300..700&family=Yatra+One&family=Rozha+One&family=Halant:wght@300..700&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Aref+Ruqaa:wght@400;700&family=Reem+Kufi:wght@400..700&family=Noto+Nastaliq+Urdu:wght@400..700&family=Noto+Serif+Devanagari:wght@400..800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300..800&family=Raleway:ital,wght@0,300..800;1,300..800&family=Poppins:wght@300..800&family=Oswald:wght@300..700&family=Quicksand:wght@300..700&family=Merriweather:ital,wght@0,300..900;1,300..900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Serif+Display:ital@0;1&family=Space+Grotesk:wght@300..700&family=Syne:wght@400..800&family=Marcellus&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Cardo:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,200..900;1,200..900&family=Prata&family=Italiana&family=Bodoni+Moda:ital,wght@0,400..900;1,400..900&family=Yeseva+One&family=Abhaya+Libre:wght@400..800&family=Rajdhani:wght@400..700&family=JetBrains+Mono:wght@300..800&display=swap');
@@ -9,8 +9,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Outfit", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-serif: "Lora", Georgia, serif;
+  --font-sans: "Outfit", "Noto Sans Devanagari", "Noto Nastaliq Urdu", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: "Lora", "Noto Serif Devanagari", "Noto Nastaliq Urdu", Georgia, serif;
   --font-mono: "Fira Code", ui-monospace, monospace;
 }
 
@@ -264,6 +264,11 @@
   }
 }
 
+.shayari-card {
+  container-type: inline-size;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.20), 0 5px 14px rgba(0, 0, 0, 0.12);
+}
+
 /* 
  * Container Query scaling system for Shayari Cards
  * This progressively scales down fonts, line-heights, gaps, and padding
@@ -271,66 +276,66 @@
  * and scales them up for large display/download sizes,
  * ensuring that text never clips or overflows the fixed aspect ratio boundaries.
  */
-@container (max-width: 320px) or (max-height: 320px) {
+@container (max-width: 320px) {
   .shayari-card {
-    --font-size-scale: 0.88;
-    --card-pt-scale: 0.8;
-    --card-pb-scale: 0.8;
-    --line-height-scale: 0.95;
-    --paragraph-gap-scale: 0.85;
-    --vertical-shift-scale: 0.85;
-    --inner-height-scale: 0.95;
+    --font-size-scale: 0.92;
+    --card-pt-scale: 0.88;
+    --card-pb-scale: 0.88;
+    --line-height-scale: 0.96;
+    --paragraph-gap-scale: 0.90;
+    --vertical-shift-scale: 0.90;
+    --inner-height-scale: 0.96;
   }
 }
 
-@container (max-width: 260px) or (max-height: 260px) {
+@container (max-width: 260px) {
   .shayari-card {
-    --font-size-scale: 0.78;
-    --card-pt-scale: 0.7;
-    --card-pb-scale: 0.7;
-    --line-height-scale: 0.9;
-    --paragraph-gap-scale: 0.75;
-    --vertical-shift-scale: 0.75;
-    --inner-height-scale: 0.9;
+    --font-size-scale: 0.84;
+    --card-pt-scale: 0.78;
+    --card-pb-scale: 0.78;
+    --line-height-scale: 0.92;
+    --paragraph-gap-scale: 0.80;
+    --vertical-shift-scale: 0.80;
+    --inner-height-scale: 0.90;
   }
 }
 
-@container (max-width: 190px) or (max-height: 190px) {
+@container (max-width: 190px) {
   .shayari-card {
-    --font-size-scale: 0.65;
-    --card-pt-scale: 0.55;
-    --card-pb-scale: 0.55;
-    --line-height-scale: 0.85;
-    --paragraph-gap-scale: 0.6;
-    --vertical-shift-scale: 0.6;
+    --font-size-scale: 0.72;
+    --card-pt-scale: 0.65;
+    --card-pb-scale: 0.65;
+    --line-height-scale: 0.88;
+    --paragraph-gap-scale: 0.68;
+    --vertical-shift-scale: 0.68;
     --inner-height-scale: 0.85;
   }
 }
 
 /* Scaled up settings for larger display views, modals, and download outputs */
-@container (min-width: 460px) and (min-height: 460px) {
+@container (min-width: 480px) {
   .shayari-card {
-    --font-size-scale: 1.08;
-    --line-height-scale: 1.03;
-    --paragraph-gap-scale: 1.08;
+    --font-size-scale: 1.04;
+    --line-height-scale: 1.02;
+    --paragraph-gap-scale: 1.04;
     --inner-height-scale: 1.02;
   }
 }
 
-@container (min-width: 600px) and (min-height: 600px) {
+@container (min-width: 700px) {
   .shayari-card {
-    --font-size-scale: 1.18;
-    --line-height-scale: 1.06;
-    --paragraph-gap-scale: 1.18;
-    --inner-height-scale: 1.05;
+    --font-size-scale: 1.10;
+    --line-height-scale: 1.04;
+    --paragraph-gap-scale: 1.08;
+    --inner-height-scale: 1.04;
   }
 }
 
-@container (min-width: 800px) and (min-height: 800px) {
+@container (min-width: 900px) {
   .shayari-card {
-    --font-size-scale: 1.28;
-    --line-height-scale: 1.1;
-    --paragraph-gap-scale: 1.28;
-    --inner-height-scale: 1.08;
+    --font-size-scale: 1.15;
+    --line-height-scale: 1.05;
+    --paragraph-gap-scale: 1.12;
+    --inner-height-scale: 1.05;
   }
 }
