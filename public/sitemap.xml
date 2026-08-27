@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  
+  <!-- Main Homepage & AI Shayari Generator -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://moodyshairy.netlify.app/icon-512.png</image:loc>
+      <image:title>Moody Shayari - Best Hindi Shayari and AI Poetry Generator</image:title>
+      <image:caption>Generate Hindi, Urdu, and Hinglish Shayari for every mood with AI</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Love Shayari Category -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=love</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://moodyshairy.netlify.app/icon-512.png</image:loc>
+      <image:title>Love Shayari in Hindi - Moody Shayari</image:title>
+      <image:caption>Romantic Love Shayari, Mohabbat Status, and Ishq Poetry in Hindi and Urdu</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Sad Shayari Category -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=sad</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://moodyshairy.netlify.app/icon-512.png</image:loc>
+      <image:title>Sad Shayari in Hindi - Dard Bhari Shayari</image:title>
+      <image:caption>Soulful Sad Shayari, Broken Heart Couplets, and Emotional Status</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Romantic Shayari Category -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=romantic</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Attitude Shayari & Status Category -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=attitude</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Emotional & Caring Shayari Category -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=emotional</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Caring & Caring Relationship Shayari -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=caring</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Friendship & Dosti Shayari Category -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=friendship</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Heartbreak / Bewafa Shayari -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=heartbreak</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Motivational / Zindagi Shayari -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=motivation</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Mirza Ghalib Classical Shayari Hub -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=ghalib</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Gulzar Classic Shayari Hub -->
+  <url>
+    <loc>https://moodyshairy.netlify.app/?mood=gulzar</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+</urlset>

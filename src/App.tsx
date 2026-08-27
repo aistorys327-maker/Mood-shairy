@@ -2080,6 +2080,60 @@ export default function App() {
     }
   }, [seenShayariTexts]);
 
+  // URL query parameter support for direct SEO landing (e.g. ?mood=sad, ?mood=love)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const moodParam = urlParams.get("mood") || urlParams.get("category") || urlParams.get("q");
+      if (moodParam && moodParam.trim()) {
+        const cleanMood = moodParam.trim();
+        setUserInput(cleanMood);
+        const categoryKey = normalizeMoodToCategory(cleanMood);
+        let matchingShayaris = DEFAULT_SHAYARIS.filter(
+          (s) => s.mood?.toLowerCase() === categoryKey.toLowerCase()
+        );
+        if (matchingShayaris.length < 5) {
+          const others = DEFAULT_SHAYARIS.filter((s) => !matchingShayaris.some((m) => m.id === s.id));
+          matchingShayaris = [...matchingShayaris, ...others];
+        }
+        const picks = matchingShayaris.slice(0, 5).map((s, idx) => ({
+          ...s,
+          id: `url-mood-${Date.now()}-${idx}`,
+          title: getShayariTitle(s),
+          customRatio: "9:16" as const,
+          customTextColor: "text-slate-900",
+          customTextShadow: false,
+          isAI: false,
+        }));
+        setGeneratedShayaris(picks);
+      }
+    }
+  }, []);
+
+  const handleSelectPresetMood = (moodName: string) => {
+    triggerHapticFeedback();
+    setUserInput(moodName);
+    const categoryKey = normalizeMoodToCategory(moodName);
+    let matchingShayaris = DEFAULT_SHAYARIS.filter(
+      (s) => s.mood?.toLowerCase() === categoryKey.toLowerCase()
+    );
+    if (matchingShayaris.length < 5) {
+      const others = DEFAULT_SHAYARIS.filter((s) => !matchingShayaris.some((m) => m.id === s.id));
+      matchingShayaris = [...matchingShayaris, ...others];
+    }
+    const picks = matchingShayaris.slice(0, 5).map((s, idx) => ({
+      ...s,
+      id: `quick-${Date.now()}-${idx}`,
+      title: getShayariTitle(s),
+      customRatio: "9:16" as const,
+      customTextColor: selectedCardStyleBg ? "text-white" : "text-slate-900",
+      customTextShadow: !!selectedCardStyleBg,
+      isAI: false,
+    }));
+    setGeneratedShayaris(picks);
+    showToast(`${moodName} Shayaris loaded! ✨`);
+  };
+
   // Theme & Font states
   const [activeToolbarPanel, setActiveToolbarPanel] = useState<"textStyle" | "language" | "weight" | "cardStyle" | null>(null);
 
@@ -3352,9 +3406,10 @@ export default function App() {
         {/* App Title & Header Bar (Clean Minimal iOS / ChatGPT / Gemini style App Bar) */}
         <header className="h-[56px] px-3 sm:px-4 shrink-0 flex items-center justify-between border-b border-[#E5E7EB] dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-30 transition-all duration-300">
           <div className="flex items-center gap-2">
-            <h1 className="text-base font-extrabold tracking-tight font-sans flex items-center gap-1 leading-none">
+            <h1 className="text-base font-extrabold tracking-tight font-sans flex items-center gap-1 leading-none" title="Moody Shayari & AI Shayari Generator - हिंदी शायरी और मूड स्टेटस">
               <span className="text-[#111111] dark:text-white">Moody</span>
               <span className="text-[#FF2D8D]">Shayari</span>
+              <span className="sr-only"> - Best Hindi Shayari, AI Shayari Generator &amp; Status Collection (हिंदी शायरी और मूड स्टेटस)</span>
             </h1>
           </div>
           
@@ -3414,16 +3469,46 @@ export default function App() {
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="py-6 px-4 text-center space-y-3 select-none max-w-sm mx-auto"
+                  className="py-4 px-3 sm:px-4 text-center space-y-3 select-none max-w-sm mx-auto overflow-y-auto max-h-[70vh] no-scrollbar"
                 >
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FF2E88]/15 to-[#7B2FF7]/15 flex items-center justify-center mx-auto text-[#FF2E88] border border-[#FF2E88]/20 shadow-xs">
-                    <Sparkles className="w-6 h-6 animate-pulse" />
+                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#FF2E88]/15 to-[#7B2FF7]/15 flex items-center justify-center mx-auto text-[#FF2E88] border border-[#FF2E88]/20 shadow-xs">
+                    <Sparkles className="w-5 h-5 animate-pulse" />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Type your mood to generate Shayari</h3>
+                    <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      Moody Shayari &amp; AI Shayari Generator
+                    </h2>
                     <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
-                      Express yourself with <span className="text-[#FF2E88] font-semibold">Love, Rain, Sad, Motivation</span> or any custom emotion in the composer below.
+                      Express yourself with <span className="text-[#FF2E88] font-semibold">Love, Sad, Romantic, Attitude, Emotional</span> or any custom emotion in the composer below.
                     </p>
+                  </div>
+
+                  {/* Popular Keyword & Mood Category Landing Filter Chips */}
+                  <div className="pt-2">
+                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                      Popular Mood Categories (लोकप्रिय शायरी)
+                    </h3>
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-xs mx-auto">
+                      {[
+                        { label: "Love Shayari ❤️", mood: "Love" },
+                        { label: "Sad Shayari 💔", mood: "Sad" },
+                        { label: "Romantic Poetry ✨", mood: "Romantic" },
+                        { label: "Attitude Status 🔥", mood: "Attitude" },
+                        { label: "Emotional & Caring 🤍", mood: "Emotional" },
+                        { label: "Friendship / Dosti 🤝", mood: "Dosti" },
+                        { label: "Heartbreak 🥀", mood: "Heartbreak" },
+                        { label: "Mirza Ghalib 📜", mood: "Ghalib" },
+                      ].map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleSelectPresetMood(item.mood)}
+                          className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-[#FF2E88]/10 hover:text-[#FF2E88] border border-slate-200/70 dark:border-slate-700/60 transition-all cursor-pointer shadow-2xs active:scale-95"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -3582,7 +3667,7 @@ export default function App() {
                             >
                               <img 
                                 src={shayari.customImage} 
-                                alt="Custom ornament" 
+                                alt={`${shayari.title || "Moody Shayari"} - Hindi Shayari Poetry Card`} 
                                 style={{ filter: shayari.customImageFilter || "none" }}
                                 className={`w-full h-full pointer-events-none ${
                                   (shayari.customImageMode || "small") === "small" ? "object-cover rounded-2xl" :
@@ -3964,7 +4049,7 @@ export default function App() {
                           >
                             <img 
                               src={shayari.customImage} 
-                              alt="Custom ornament" 
+                              alt={`${shayari.title || "Saved Moody Shayari"} - Hindi Poetry Verse Card`} 
                               style={{ filter: shayari.customImageFilter || "none" }}
                               className={`w-full h-full pointer-events-none ${
                                 (shayari.customImageMode || "small") === "small" ? "object-cover rounded-2xl" :
@@ -4183,6 +4268,177 @@ export default function App() {
           {activeTab === "about" && (
             <div className="space-y-6">
               
+              {/* Comprehensive SEO Headline & Introduction */}
+              <section className={`border rounded-[28px] p-5 shadow-sm space-y-3 ${activeTheme.formCardBg} ${activeTheme.cardBorder}`}>
+                <h2 className={`text-sm font-black uppercase tracking-wider ${activeTheme.textColor}`}>
+                  Moody Shayari - AI Hindi &amp; Urdu Shayari Generator
+                </h2>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Discover, generate, customize and share the most heartfelt Hindi &amp; Urdu Shayaris for every mood—from deeply touching <strong>Sad Shayari</strong> and soulful <strong>Love Shayari</strong> to fiery <strong>Attitude Status</strong> and comforting <strong>Emotional &amp; Caring Shayari</strong>.
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {["Sad Shayari", "Love Shayari", "Attitude Status", "Romantic Poetry", "Emotional Shayari", "Dosti Shayari", "Mirza Ghalib", "Gulzar"].map((cat, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("generator");
+                        handleSelectPresetMood(cat);
+                      }}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:text-[#FF2E88] shadow-2xs transition-all cursor-pointer"
+                    >
+                      {cat} ↗
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* Categorized Poetry Anthology Sections */}
+              <section className="space-y-3.5">
+                <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">
+                  Curated Mood Categories &amp; Couplets
+                </h2>
+
+                <div className="space-y-4">
+                  {/* Sad Shayari Category */}
+                  <article className={`border rounded-[24px] p-4.5 space-y-2.5 ${activeTheme.cardBg} ${activeTheme.cardBorder}`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className={`text-xs font-black ${activeTheme.textColor}`}>💔 Sad Shayari (दर्द भरी शायरी &amp; Heartbreak)</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("generator");
+                          handleSelectPresetMood("Sad");
+                        }}
+                        className="text-[10px] font-bold text-[#FF2E88] hover:underline"
+                      >
+                        Generate Sad Cards ↗
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Express heartbreak, solitude (तन्हाई), and poignant memories with moving two-line verses.
+                    </p>
+                    <div className={`border rounded-xl p-3 text-center ${activeTheme.subCardBg} ${activeTheme.cardBorder}`}>
+                      <p className={`text-sm leading-relaxed font-serif italic ${activeTheme.textColor}`}>
+                        "कभी किसी को मुकम्मल जहाँ नहीं मिलता,<br />कहीं ज़मीं तो कहीं आसमाँ नहीं मिलता।"
+                      </p>
+                      <span className="text-[9px] text-slate-400 mt-1 block">~ निदा फ़ाज़ली (Nida Fazli)</span>
+                    </div>
+                  </article>
+
+                  {/* Love Shayari Category */}
+                  <article className={`border rounded-[24px] p-4.5 space-y-2.5 ${activeTheme.cardBg} ${activeTheme.cardBorder}`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className={`text-xs font-black ${activeTheme.textColor}`}>❤️ Love &amp; Romantic Shayari (सच्ची मोहब्बत व इश्क़)</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("generator");
+                          handleSelectPresetMood("Love");
+                        }}
+                        className="text-[10px] font-bold text-[#FF2E88] hover:underline"
+                      >
+                        Generate Love Cards ↗
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Romantic couplets capturing love, adoration, and sweet companionship for your special someone.
+                    </p>
+                    <div className={`border rounded-xl p-3 text-center ${activeTheme.subCardBg} ${activeTheme.cardBorder}`}>
+                      <p className={`text-sm leading-relaxed font-serif italic ${activeTheme.textColor}`}>
+                        "तेरे चेहरे से हटती नहीं नज़र हम क्या करें,<br />हम भी हैं दिल के हाथों बेबस सनम क्या करें।"
+                      </p>
+                      <span className="text-[9px] text-slate-400 mt-1 block">~ Moody Romance Collection</span>
+                    </div>
+                  </article>
+
+                  {/* Attitude & Swag Category */}
+                  <article className={`border rounded-[24px] p-4.5 space-y-2.5 ${activeTheme.cardBg} ${activeTheme.cardBorder}`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className={`text-xs font-black ${activeTheme.textColor}`}>🔥 Attitude Shayari &amp; Royal Status (तेवर व स्वैग)</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("generator");
+                          handleSelectPresetMood("Attitude");
+                        }}
+                        className="text-[10px] font-bold text-[#FF2E88] hover:underline"
+                      >
+                        Generate Attitude Cards ↗
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                      High-confidence, bold status lines for WhatsApp bio and Instagram reels.
+                    </p>
+                    <div className={`border rounded-xl p-3 text-center ${activeTheme.subCardBg} ${activeTheme.cardBorder}`}>
+                      <p className={`text-sm leading-relaxed font-serif italic ${activeTheme.textColor}`}>
+                        "हमारी शख्सियत का अंदाज़ा तुम क्या लगाओगे,<br />हम तो वो हैं जो समंदर का रुख भी मोड़ देते हैं।"
+                      </p>
+                      <span className="text-[9px] text-slate-400 mt-1 block">~ Moody Attitude Status</span>
+                    </div>
+                  </article>
+
+                  {/* Emotional & Caring Category */}
+                  <article className={`border rounded-[24px] p-4.5 space-y-2.5 ${activeTheme.cardBg} ${activeTheme.cardBorder}`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className={`text-xs font-black ${activeTheme.textColor}`}>🤍 Emotional &amp; Caring Shayari (एहसास व केयरिंग)</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("generator");
+                          handleSelectPresetMood("Emotional");
+                        }}
+                        className="text-[10px] font-bold text-[#FF2E88] hover:underline"
+                      >
+                        Generate Caring Cards ↗
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Warm, deeply empathetic verses that show care, unconditional support, and understanding.
+                    </p>
+                    <div className={`border rounded-xl p-3 text-center ${activeTheme.subCardBg} ${activeTheme.cardBorder}`}>
+                      <p className={`text-sm leading-relaxed font-serif italic ${activeTheme.textColor}`}>
+                        "फ़िक्र बता देती है कि अपना कौन है,<br />वरना बातें तो यहाँ हर कोई मीठी करता है।"
+                      </p>
+                      <span className="text-[9px] text-slate-400 mt-1 block">~ Moody Caring Thoughts</span>
+                    </div>
+                  </article>
+                </div>
+              </section>
+
+              {/* Frequently Asked Questions (FAQ) Section - Matching Schema JSON-LD */}
+              <section className={`border rounded-[28px] p-5 shadow-sm space-y-3.5 ${activeTheme.formCardBg} ${activeTheme.cardBorder}`}>
+                <h2 className={`text-xs font-black uppercase tracking-widest ${activeTheme.textColor}`}>
+                  Frequently Asked Questions (FAQ)
+                </h2>
+                <div className="space-y-3 text-[11px] text-slate-600 dark:text-slate-300">
+                  <div className={`border-l-2 ${activeTheme.borderAccent} pl-3.5 space-y-1`}>
+                    <strong className={`block ${activeTheme.textColor} font-bold text-xs`}>
+                      What is Moody Shayari?
+                    </strong>
+                    <p>
+                      Moody Shayari is an AI-powered Hindi and Urdu poetry platform that generates soulful couplets, ghazals, and status cards tailored to your exact emotional mood.
+                    </p>
+                  </div>
+                  <div className={`border-l-2 ${activeTheme.borderAccent} pl-3.5 space-y-1`}>
+                    <strong className={`block ${activeTheme.textColor} font-bold text-xs`}>
+                      How do I create and download custom Shayari cards?
+                    </strong>
+                    <p>
+                      Enter your emotion or choose a mood, tap Generate, and hit the Edit (✏️) button on any card to customize fonts, colors, background textures, and aspect ratios (9:16 Story, 1:1 Square, 4:5 Post, 16:9 Banner) for instant PNG download.
+                    </p>
+                  </div>
+                  <div className={`border-l-2 ${activeTheme.borderAccent} pl-3.5 space-y-1`}>
+                    <strong className={`block ${activeTheme.textColor} font-bold text-xs`}>
+                      Are all shayaris free to copy and share?
+                    </strong>
+                    <p>
+                      Yes! You can copy text with 1-click or share directly to WhatsApp, Instagram, Facebook, and Twitter for free.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
               {/* Educational Card on Poetry styles */}
               <div className={`border rounded-[28px] p-5 shadow-sm space-y-3 ${activeTheme.formCardBg} ${activeTheme.cardBorder}`}>
                 <h3 className={`text-xs font-black uppercase tracking-widest ${activeTheme.textColor}`}>
@@ -4953,7 +5209,7 @@ export default function App() {
                                     >
                                       <img
                                         src={editedImage}
-                                        alt="drag-preview"
+                                        alt="Moody Shayari Card Illustration"
                                         style={{ filter: editedImageFilter }}
                                         className={`w-full h-full pointer-events-none ${
                                           editedImageMode === "small" ? "object-cover rounded-2xl" :

@@ -1,6 +1,6 @@
 {
   "name": "Moody Shayari",
-  "description": "A lightweight frontend React application to generate and copy exactly 5 beautiful Urdu/Hindi Shayaris matching your mood.",
+  "description": "Best Hindi & Urdu Shayari platform, AI Shayari generator, and visual poetry status card studio for Sad, Love, Attitude, Romantic, and Emotional moods.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

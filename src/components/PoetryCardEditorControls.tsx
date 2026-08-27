@@ -663,7 +663,7 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
                       >
                         <img
                           src={styleUrl}
-                          alt={`Style ${idx + 1}`}
+                          alt={`Moody Shayari Background Theme ${idx + 1}`}
                           className="w-full h-full object-cover"
                           onError={() => {
                             setFailedCardStyles((prev) => new Set([...prev, styleUrl]));
