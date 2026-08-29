@@ -216,8 +216,7 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
   editedTextGradient = "",
   setEditedTextGradient,
 }) => {
-  const [failedCardStyles, setFailedCardStyles] = useState<Set<string>>(new Set());
-  const validCardStyles = loadedCardStyles.filter((s) => Boolean(s) && !failedCardStyles.has(s));
+  const validCardStyles = loadedCardStyles.filter(Boolean);
 
   // Determine active tool (text, background, layout, image)
   const currentTool = 
@@ -231,6 +230,26 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
     }
     setEditedBgGradient("");
     setEditedBgColor("");
+    if (setEditedTextColor && (!editedTextColor || editedTextColor === "text-slate-900" || editedTextColor === "text-[#111111]")) {
+      setEditedTextColor("text-white");
+    }
+    if (setEditedTextShadow) {
+      setEditedTextShadow(true);
+    }
+  };
+
+  const handleSelectDefaultBg = () => {
+    if (setEditedCardStyleBg) {
+      setEditedCardStyleBg("none");
+    }
+    setEditedBgGradient("");
+    setEditedBgColor("");
+    if (setEditedTextColor && (editedTextColor === "text-white" || editedTextColor === "text-slate-100")) {
+      setEditedTextColor("text-slate-900");
+    }
+    if (setEditedTextShadow) {
+      setEditedTextShadow(false);
+    }
   };
 
   const handleSelectGradient = (gradValue: string) => {
@@ -648,8 +667,33 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
             {/* Loaded Card Style Images */}
             {validCardStyles.length > 0 && (
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-800 block">Card Background Images</label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[150px] overflow-y-auto pr-1 no-scrollbar">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 block">Card Background Themes</label>
+                  <span className="text-[10px] text-slate-400 font-medium">Select photo theme or plain</span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[160px] overflow-y-auto pr-1 no-scrollbar">
+                  {/* Default Plain White Option */}
+                  {(() => {
+                    const isDefaultSelected = (!editedCardStyleBg || editedCardStyleBg === "none") && !editedBgGradient && !editedBgColor;
+                    return (
+                      <button
+                        type="button"
+                        onClick={handleSelectDefaultBg}
+                        className={`relative h-16 rounded-xl overflow-hidden border-2 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs flex flex-col items-center justify-center bg-slate-50 ${
+                          isDefaultSelected ? "border-indigo-600 ring-2 ring-indigo-200 scale-[1.02] bg-indigo-50/50" : "border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <span className="text-lg">🎨</span>
+                        <span className="text-[9px] font-bold text-slate-700 mt-0.5">Default Plain</span>
+                        {isDefaultSelected && (
+                          <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })()}
+
                   {validCardStyles.map((styleUrl, idx) => {
                     const isSelected = editedCardStyleBg === styleUrl;
                     return (
@@ -658,20 +702,21 @@ export const PoetryCardEditorControls: React.FC<EditorControlsProps> = ({
                         type="button"
                         onClick={() => handleSelectCardStyle(styleUrl)}
                         className={`relative h-16 rounded-xl overflow-hidden border-2 cursor-pointer transition-all hover:scale-[1.02] shadow-2xs ${
-                          isSelected ? "border-indigo-600 ring-2 ring-indigo-200 scale-[1.02]" : "border-slate-200"
+                          isSelected ? "border-indigo-600 ring-2 ring-indigo-200 scale-[1.02]" : "border-slate-200 hover:border-slate-300"
                         }`}
                       >
                         <img
                           src={styleUrl}
                           alt={`Moody Shayari Background Theme ${idx + 1}`}
                           className="w-full h-full object-cover"
-                          onError={() => {
-                            setFailedCardStyles((prev) => new Set([...prev, styleUrl]));
-                          }}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
                         />
                         {isSelected && (
-                          <div className="absolute inset-0 bg-indigo-900/30 flex items-center justify-center text-white">
-                            <Check className="w-4 h-4 stroke-[3]" />
+                          <div className="absolute inset-0 bg-indigo-900/35 backdrop-blur-[0.5px] flex items-center justify-center text-white">
+                            <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center shadow-sm">
+                              <Check className="w-3 h-3 text-white stroke-[3]" />
+                            </div>
                           </div>
                         )}
                       </button>

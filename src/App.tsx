@@ -1875,6 +1875,19 @@ export const formatCardBgUrl = (urlStr: string) => {
   return urlStr;
 };
 
+export const getEffectiveCardStyleBg = (
+  cardCustomStyleBg: string | undefined | null,
+  globalStyleBg: string | null | undefined
+): string => {
+  if (cardCustomStyleBg !== undefined && cardCustomStyleBg !== null) {
+    if (cardCustomStyleBg === "none" || cardCustomStyleBg === "__NONE__") {
+      return "";
+    }
+    return cardCustomStyleBg;
+  }
+  return globalStyleBg || "";
+};
+
 export default function App() {
   const APK_DOWNLOAD_URL = "https://github.com/aistorys327-maker/My-App-data-/releases/download/v1.0/Moody_Shairy_v1.0.apk";
 
@@ -2145,13 +2158,12 @@ export default function App() {
   });
 
   const [loadedCardStyles, setLoadedCardStyles] = useState<string[]>(DEFAULT_CARD_STYLES);
-  const [failedCardStyles, setFailedCardStyles] = useState<Set<string>>(new Set());
   const [categoryCardStyles, setCategoryCardStyles] = useState<Record<string, string[]>>(DEFAULT_CATEGORY_CARD_STYLES);
   const [isLoadingStyles, setIsLoadingStyles] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [editedCardStyleBg, setEditedCardStyleBg] = useState<string>("");
 
-  const validCardStyles = loadedCardStyles.filter((s) => !failedCardStyles.has(s));
+  const validCardStyles = loadedCardStyles.filter(Boolean);
 
   const normalizeMoodToCategory = (moodStr: string): string => {
     if (!moodStr) return "general";
@@ -3552,9 +3564,10 @@ export default function App() {
                         shayari.customBgColor,
                         activeTheme.cardBg
                       );
-                      const currentCardStyleBg = shayari.customCardStyleBg !== undefined
-                        ? shayari.customCardStyleBg
-                        : (selectedCardStyleBg || "");
+                      const currentCardStyleBg = getEffectiveCardStyleBg(
+                        shayari.customCardStyleBg,
+                        selectedCardStyleBg
+                      );
 
                       const finalCardBgStyle: React.CSSProperties = {
                         borderRadius: "28px",
@@ -3583,7 +3596,10 @@ export default function App() {
                         finalCardBgStyle.backgroundColor = "#FFFFFF";
                       }
 
-                      const isLightCardBg = !shayari.customBgGradient?.includes("950") && 
+                      const hasPhotoBg = !!currentCardStyleBg && !shayari.customBgGradient && !shayari.customBgColor;
+
+                      const isLightCardBg = !hasPhotoBg &&
+                                            !shayari.customBgGradient?.includes("950") && 
                                             !shayari.customBgGradient?.includes("900") && 
                                             !shayari.customBgGradient?.includes("black") && 
                                             !shayari.customBgColor?.includes("slate-9") && 
@@ -3592,7 +3608,9 @@ export default function App() {
 
                       const textClass = (isLightCardBg && (!shayari.customTextColor || shayari.customTextColor === "text-white" || shayari.customTextColor === "text-slate-100")) 
                         ? "text-[#111111]" 
-                        : (shayari.customTextColor || "text-[#111111]");
+                        : (hasPhotoBg && (!shayari.customTextColor || shayari.customTextColor === "text-slate-900" || shayari.customTextColor === "text-[#111111]")
+                            ? "text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                            : (shayari.customTextColor || "text-[#111111]"));
                       const sizeClass = shayari.customTextSize || "text-2xl";
                       const fontClass = shayari.customFontClass || activeFontConfig.class;
                       const weightClass = (shayari.customIsBold !== undefined ? shayari.customIsBold : fontWeight === "bold")
@@ -3949,9 +3967,10 @@ export default function App() {
                       shayari.customBgColor,
                       activeTheme.cardBg
                     );
-                    const savedStyleBg = shayari.customCardStyleBg !== undefined
-                      ? shayari.customCardStyleBg
-                      : (selectedCardStyleBg || "");
+                    const savedStyleBg = getEffectiveCardStyleBg(
+                      shayari.customCardStyleBg,
+                      selectedCardStyleBg
+                    );
 
                     const finalCardBgStyle: React.CSSProperties = {
                       borderRadius: "28px",
@@ -3979,7 +3998,11 @@ export default function App() {
                     } else {
                       finalCardBgStyle.backgroundColor = "#FFFFFF";
                     }
-                    const isLightCardBg = !shayari.customBgGradient?.includes("950") && 
+
+                    const hasPhotoBg = !!savedStyleBg && !shayari.customBgGradient && !shayari.customBgColor;
+
+                    const isLightCardBg = !hasPhotoBg &&
+                                          !shayari.customBgGradient?.includes("950") && 
                                           !shayari.customBgGradient?.includes("900") && 
                                           !shayari.customBgGradient?.includes("black") && 
                                           !shayari.customBgColor?.includes("slate-9") && 
@@ -3988,7 +4011,9 @@ export default function App() {
 
                     const textClass = (isLightCardBg && (!shayari.customTextColor || shayari.customTextColor === "text-white" || shayari.customTextColor === "text-slate-100")) 
                       ? "text-[#111111]" 
-                      : (shayari.customTextColor || "text-[#111111]");
+                      : (hasPhotoBg && (!shayari.customTextColor || shayari.customTextColor === "text-slate-900" || shayari.customTextColor === "text-[#111111]")
+                          ? "text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                          : (shayari.customTextColor || "text-[#111111]"));
                     const sizeClass = shayari.customTextSize || "text-2xl";
                     const fontClass = shayari.customFontClass || activeFontConfig.class;
                     const weightClass = (shayari.customIsBold !== undefined ? shayari.customIsBold : fontWeight === "bold")
@@ -4822,9 +4847,10 @@ export default function App() {
                       <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-2 pt-1 scroll-smooth select-none min-h-[120px]">
                         {(() => {
                           const activeCard = generatedShayaris[activeCardIndex];
-                          const activeStyle = activeCard?.customCardStyleBg !== undefined
-                            ? activeCard.customCardStyleBg
-                            : (selectedCardStyleBg || "");
+                          const activeStyle = getEffectiveCardStyleBg(
+                            activeCard?.customCardStyleBg,
+                            selectedCardStyleBg
+                          );
                           const isDefaultSelected = !activeStyle;
 
                           return (
@@ -4833,7 +4859,7 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => handleApplyCardStyleToActiveCard(null)}
-                                className={`w-[72px] h-[108px] min-w-[72px] rounded-[18px] border flex flex-col items-center justify-center cursor-pointer transition-all duration-200 active:scale-95 shadow-md shrink-0 ${
+                                className={`w-[72px] h-[108px] min-w-[72px] rounded-[18px] border flex flex-col items-center justify-center cursor-pointer transition-all duration-200 active:scale-95 shadow-md shrink-0 relative ${
                                   isDefaultSelected
                                     ? "border-[#FF2D8D] ring-2 ring-[#FF2D8D]/60 shadow-[0_0_14px_rgba(255,45,141,0.4)] scale-[1.03] bg-rose-50/50 dark:bg-rose-950/20 z-10"
                                     : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:scale-[1.02]"
@@ -4841,6 +4867,11 @@ export default function App() {
                               >
                                 <span className="text-2xl">🎨</span>
                                 <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 leading-none mt-1.5">Default</span>
+                                {isDefaultSelected && (
+                                  <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#FF2D8D] flex items-center justify-center text-white shadow-xs">
+                                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                  </div>
+                                )}
                               </button>
 
                               {isLoadingStyles ? (
@@ -4870,16 +4901,15 @@ export default function App() {
                                         alt={cleanName}
                                         className="w-full h-full object-cover rounded-[18px]"
                                         referrerPolicy="no-referrer"
-                                        onError={(e) => {
-                                          const btn = e.currentTarget.closest("button");
-                                          if (btn) btn.style.setProperty("display", "none", "important");
-                                          setFailedCardStyles((prev) => {
-                                            const next = new Set(prev);
-                                            next.add(stylePath);
-                                            return next;
-                                          });
-                                        }}
+                                        loading="lazy"
                                       />
+                                      {isSelected && (
+                                        <div className="absolute inset-0 bg-[#FF2D8D]/30 backdrop-blur-[0.5px] flex items-center justify-center text-white z-10">
+                                          <div className="w-6 h-6 rounded-full bg-[#FF2D8D] flex items-center justify-center shadow-md">
+                                            <Check className="w-3.5 h-3.5 text-white stroke-[3]" />
+                                          </div>
+                                        </div>
+                                      )}
                                     </button>
                                   );
                                 })
@@ -5115,7 +5145,10 @@ export default function App() {
                           editedBgColor,
                           "bg-slate-50"
                         );
-                        const editedStyleBg = editedCardStyleBg !== undefined ? editedCardStyleBg : (selectedCardStyleBg || "");
+                        const editedStyleBg = getEffectiveCardStyleBg(
+                          editedCardStyleBg,
+                          selectedCardStyleBg
+                        );
 
                         const finalCardBgStyle: React.CSSProperties = {
                           borderRadius: "28px",
